@@ -11,7 +11,8 @@ slow drives, or unreachable network shares.
 ## Features
 
 - Multi-tab browsing with back/forward/up navigation (including mouse
-  back/forward buttons), breadcrumbs, and an editable address bar
+  back/forward buttons), breadcrumbs, and an editable address bar; open tabs
+  are remembered and reopened on the next launch
 - List view and large-icons/grid view, with sortable columns and real image
   thumbnails (loaded lazily, only for visible rows)
 - Favorites sidebar (persisted) with automatic OneDrive detection, and cloud

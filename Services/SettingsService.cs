@@ -15,6 +15,7 @@ public static class SettingsService
         public AppTheme Theme { get; set; } = AppTheme.System;
         public bool ShowHiddenFiles { get; set; }
         public AccentColor AccentColor { get; set; } = AccentColor.Blue;
+        public List<string> OpenTabs { get; set; } = new();
     }
 
     private static SettingsData LoadData()
@@ -62,6 +63,15 @@ public static class SettingsService
     {
         var data = LoadData();
         data.AccentColor = accent;
+        SaveData(data);
+    }
+
+    public static IReadOnlyList<string> LoadOpenTabs() => LoadData().OpenTabs;
+
+    public static void SaveOpenTabs(IEnumerable<string> paths)
+    {
+        var data = LoadData();
+        data.OpenTabs = paths.ToList();
         SaveData(data);
     }
 }

@@ -76,7 +76,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     public bool CanGoUp => !string.IsNullOrEmpty(CurrentPath) && Path.GetPathRoot(CurrentPath) != CurrentPath;
     public bool IsAtDrivesRoot => string.IsNullOrEmpty(CurrentPath);
 
-    public TabViewModel()
+    public TabViewModel(string? initialPath = null)
     {
         _showHiddenFiles = SettingsService.LoadShowHiddenFiles();
         SelectedItems.CollectionChanged += OnSelectedItemsChanged;
@@ -90,7 +90,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
             this, (recipient, message) =>
                 recipient.AccentBrush = new SolidColorBrush(AccentColorPalette.GetBaseColor(message.AccentColor)));
 
-        NavigateHome();
+        if (!string.IsNullOrEmpty(initialPath) && Directory.Exists(initialPath))
+        {
+            NavigateTo(initialPath, recordHistory: false);
+        }
+        else
+        {
+            NavigateHome();
+        }
     }
 
     private void OnSelectedItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)

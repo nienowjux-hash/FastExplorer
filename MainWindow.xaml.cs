@@ -35,7 +35,11 @@ public sealed partial class MainWindow : Window
         WeakReferenceMessenger.Default.Register<MainWindow, AccentColorChangedMessage>(
             this, (recipient, message) => recipient.ApplyAccentColor(message.AccentColor));
 
-        Closed += (_, _) => WeakReferenceMessenger.Default.UnregisterAll(this);
+        Closed += (_, _) =>
+        {
+            ViewModel.SaveOpenTabs();
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+        };
     }
 
     private void ApplyTheme(AppTheme theme)

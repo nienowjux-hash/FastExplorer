@@ -44,7 +44,27 @@ public partial class MainViewModel : ObservableObject
         showHiddenFiles = SettingsService.LoadShowHiddenFiles();
         selectedAccentColor = SettingsService.LoadAccentColor();
         AccentBrush = new SolidColorBrush(AccentColorPalette.GetBaseColor(selectedAccentColor));
-        NewTab();
+
+        var savedTabs = SettingsService.LoadOpenTabs();
+        if (savedTabs.Count == 0)
+        {
+            NewTab();
+        }
+        else
+        {
+            foreach (var path in savedTabs)
+            {
+                OpenTab(path);
+            }
+            SelectedTab = Tabs[0];
+        }
+    }
+
+    // Called on shutdown (see MainWindow.Closed) so the next launch reopens the
+    // same folders - cheap since it's just the current path per tab, written once.
+    public void SaveOpenTabs()
+    {
+        SettingsService.SaveOpenTabs(Tabs.Select(t => t.CurrentPath));
     }
 
     partial void OnSelectedThemeChanged(AppTheme value)
@@ -73,6 +93,12 @@ public partial class MainViewModel : ObservableObject
         var tab = new TabViewModel();
         Tabs.Add(tab);
         SelectedTab = tab;
+    }
+
+    private void OpenTab(string path)
+    {
+        var tab = new TabViewModel(path);
+        Tabs.Add(tab);
     }
 
     [RelayCommand]
