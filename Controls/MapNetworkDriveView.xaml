@@ -1,0 +1,35 @@
+<UserControl
+    x:Class="FastExplorer.Controls.MapNetworkDriveView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <StackPanel Spacing="12" Width="360">
+        <StackPanel Spacing="4">
+            <TextBlock Text="Drive letter" Opacity="0.6" FontSize="12" />
+            <ComboBox x:Name="DriveLetterCombo" HorizontalAlignment="Stretch" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Folder" Opacity="0.6" FontSize="12" />
+            <TextBox x:Name="PathBox" PlaceholderText="\\server\share" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Username (optional)" Opacity="0.6" FontSize="12" />
+            <TextBox x:Name="UsernameBox" PlaceholderText="Leave blank to use current sign-in" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Password (optional)" Opacity="0.6" FontSize="12" />
+            <PasswordBox x:Name="PasswordBox" />
+        </StackPanel>
+
+        <CheckBox x:Name="ReconnectCheck" Content="Reconnect at sign-in" IsChecked="True" />
+
+        <TextBlock x:Name="ErrorText" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                   TextWrapping="Wrap" Visibility="Collapsed" />
+    </StackPanel>
+</UserControl>
