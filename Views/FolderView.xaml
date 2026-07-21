@@ -139,6 +139,7 @@
                   ItemsSource="{Binding Items}"
                   SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   SelectionMode="Extended"
+                  Loaded="FileList_Loaded"
                   DoubleTapped="FileList_DoubleTapped"
                   SelectionChanged="FileList_SelectionChanged"
                   RightTapped="FileList_RightTapped"
@@ -168,16 +169,16 @@
             <ListView.ContextFlyout>
                 <MenuFlyout x:Name="FileContextMenu" Opening="ContextFlyout_Opening" Closed="ContextFlyout_Closed">
                     <MenuFlyoutItem Text="Open" Click="ContextOpen_Click" />
-                    <MenuFlyoutItem Text="Cut" Click="ContextCut_Click" />
-                    <MenuFlyoutItem Text="Copy" Click="ContextCopy_Click" />
-                    <MenuFlyoutItem Text="Paste" Click="ContextPaste_Click" />
-                    <MenuFlyoutItem Text="Rename" Click="ContextRename_Click" />
-                    <MenuFlyoutItem Text="Delete" Click="ContextDelete_Click" />
+                    <MenuFlyoutItem Text="Cut" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
+                    <MenuFlyoutItem Text="Copy" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
+                    <MenuFlyoutItem Text="Paste" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />
+                    <MenuFlyoutItem Text="Rename" Click="ContextRename_Click" KeyboardAcceleratorTextOverride="F2" />
+                    <MenuFlyoutItem Text="Delete" Click="ContextDelete_Click" KeyboardAcceleratorTextOverride="Del" />
                     <MenuFlyoutItem x:Name="DisconnectDriveItem" Text="Disconnect network drive" Click="ContextDisconnectDrive_Click" />
                     <MenuFlyoutSeparator />
                     <MenuFlyoutItem Text="Add to favorites" Click="ContextAddFavorite_Click" />
                     <MenuFlyoutSeparator x:Name="ShellExtensionsAnchor" />
-                    <MenuFlyoutItem Text="Properties" Click="ContextProperties_Click" />
+                    <MenuFlyoutItem Text="Properties" Click="ContextProperties_Click" KeyboardAcceleratorTextOverride="Alt+Enter" />
                 </MenuFlyout>
             </ListView.ContextFlyout>
         </ListView>

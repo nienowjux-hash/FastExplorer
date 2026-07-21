@@ -197,8 +197,18 @@ public sealed partial class FolderView : UserControl
                 vm.UndoCommand.Execute(null);
                 e.Handled = true;
                 break;
+            case VirtualKey.A when ctrlDown:
+                FileList.SelectAll();
+                e.Handled = true;
+                break;
         }
     }
+
+    // Ctrl+C/X/V etc. are handled by FileList_KeyDown above, which only fires once
+    // the ListView itself has keyboard focus. Opening a folder (new tab, double-click,
+    // address bar) doesn't automatically move focus there, so give it focus as soon as
+    // it's loaded - a one-time, essentially free call, not something that runs per item.
+    private void FileList_Loaded(object sender, RoutedEventArgs e) => FileList.Focus(FocusState.Programmatic);
 
     private void FileList_DragOver(object sender, DragEventArgs e)
     {
