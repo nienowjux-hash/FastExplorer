@@ -11,6 +11,7 @@
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:HexColorToBrushConverter x:Key="HexColorToBrushConverter" />
+        <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
 
         <ItemsPanelTemplate x:Key="ListItemsPanel">
             <ItemsStackPanel Orientation="Vertical" />
@@ -20,7 +21,8 @@
         </ItemsPanelTemplate>
 
         <DataTemplate x:Key="ListItemTemplate" x:DataType="models:FileSystemItem">
-            <Grid Padding="12,6" ColumnSpacing="8">
+            <Grid Padding="12,6" ColumnSpacing="8"
+                  Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="28" />
                     <ColumnDefinition Width="*" />
@@ -44,7 +46,8 @@
         </DataTemplate>
 
         <DataTemplate x:Key="LargeIconItemTemplate" x:DataType="models:FileSystemItem">
-            <StackPanel Width="96" Margin="4" Padding="4" HorizontalAlignment="Center" Spacing="4">
+            <StackPanel Width="96" Margin="4" Padding="4" HorizontalAlignment="Center" Spacing="4"
+                        Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}">
                 <Grid Width="48" Height="48" HorizontalAlignment="Center">
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="{x:Bind IconGlyph}" FontSize="40"
                               Foreground="{x:Bind IconColorHex, Converter={StaticResource HexColorToBrushConverter}}"

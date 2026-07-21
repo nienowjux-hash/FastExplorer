@@ -22,6 +22,12 @@ public partial class FileSystemItem : ObservableObject
 
     partial void OnThumbnailChanged(BitmapImage? value) => OnPropertyChanged(nameof(HasThumbnail));
 
+    // Set/cleared by TabViewModel.UpdateCutMarkers() to mirror Explorer's dimmed
+    // "marked for move" look after Ctrl+X, until the item is pasted or the cut is
+    // superseded by another copy/cut.
+    [ObservableProperty]
+    private bool isCut;
+
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public FileSystemItemKind Kind { get; init; }

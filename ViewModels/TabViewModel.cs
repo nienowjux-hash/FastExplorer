@@ -89,6 +89,8 @@ public partial class TabViewModel : ObservableObject, IDisposable
         WeakReferenceMessenger.Default.Register<TabViewModel, AccentColorChangedMessage>(
             this, (recipient, message) =>
                 recipient.AccentBrush = new SolidColorBrush(AccentColorPalette.GetBaseColor(message.AccentColor)));
+        WeakReferenceMessenger.Default.Register<TabViewModel, ClipboardChangedMessage>(
+            this, (recipient, message) => recipient.UpdateCutMarkers());
 
         if (!string.IsNullOrEmpty(initialPath) && Directory.Exists(initialPath))
         {
@@ -193,6 +195,19 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
 
         RebuildBreadcrumbs(path);
+        UpdateCutMarkers();
+    }
+
+    // Mirrors Explorer's dimmed look for items marked with Ctrl+X. Cheap - just a
+    // property flip per already-loaded item, no disk access - and kept in sync
+    // across every open tab via ClipboardChangedMessage rather than a per-tab flag.
+    private void UpdateCutMarkers()
+    {
+        var cutSet = s_clipboardIsCut ? s_clipboard : null;
+        foreach (var item in Items)
+        {
+            item.IsCut = cutSet is not null && cutSet.Contains(item.FullPath);
+        }
     }
 
     private IEnumerable<FileSystemItem> OrderItems(IEnumerable<FileSystemItem> items)
@@ -563,6 +578,8 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (targets.Count == 0) return;
         s_clipboard = targets.Select(t => t.FullPath).ToList();
         s_clipboardIsCut = false;
+        StatusText = targets.Count == 1 ? $"Copied '{targets[0].Name}'" : $"Copied {targets.Count} items";
+        WeakReferenceMessenger.Default.Send(new ClipboardChangedMessage());
     }
 
     [RelayCommand]
@@ -572,6 +589,8 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (targets.Count == 0) return;
         s_clipboard = targets.Select(t => t.FullPath).ToList();
         s_clipboardIsCut = true;
+        StatusText = targets.Count == 1 ? $"Cut '{targets[0].Name}'" : $"Cut {targets.Count} items";
+        WeakReferenceMessenger.Default.Send(new ClipboardChangedMessage());
     }
 
     // Only the file name conflicts against the destination folder - used by the view
@@ -607,7 +626,11 @@ public partial class TabViewModel : ObservableObject, IDisposable
         var outcome = await TransferAsync(sources, destination, isCut, resolution);
         if (outcome is null) return; // cancelled
 
-        if (isCut) s_clipboard = new List<string>();
+        if (isCut)
+        {
+            s_clipboard = new List<string>();
+            WeakReferenceMessenger.Default.Send(new ClipboardChangedMessage());
+        }
         Refresh();
 
         if (outcome.Succeeded.Count > 0)
@@ -619,6 +642,12 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (outcome.Failures.Count > 0)
         {
             StatusText = $"Couldn't paste: {string.Join(", ", outcome.Failures)}";
+        }
+        else
+        {
+            StatusText = outcome.Succeeded.Count == 1
+                ? $"Pasted '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
+                : $"Pasted {outcome.Succeeded.Count} items";
         }
     }
 
@@ -638,6 +667,12 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (outcome.Failures.Count > 0)
         {
             StatusText = $"Couldn't copy: {string.Join(", ", outcome.Failures)}";
+        }
+        else
+        {
+            StatusText = outcome.Succeeded.Count == 1
+                ? $"Copied '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
+                : $"Copied {outcome.Succeeded.Count} items";
         }
     }
 
