@@ -8,6 +8,22 @@
     xmlns:vm="using:FastExplorer.ViewModels"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <!-- Base ("inactive") look for one dock-guide chip; UpdateDockGuide sets
+             Background/BorderBrush/icon Foreground directly to show the active zone,
+             then ClearValue()s them back to fall through to this style. -->
+        <Style x:Key="DockGuideChipStyle" TargetType="Border">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Resources>
+
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <!-- TabView's own default style (DefaultTabViewStyle in the WinUI generic.xaml)
              sets VerticalAlignment="Top" - it does NOT stretch to fill its container by
@@ -53,21 +69,49 @@
         <!-- Drop-zone overlay: invisible and non-hit-testable except during an
              active cross-pane tab drag (toggled via TabDragState), so it never
              interferes with ordinary clicks/scrolling into the file list below.
-             Covers the whole pane (not just the tab strip) so dropping on an
-             edge here is what triggers a split. Two layers: a faint tint across
-             the whole pane whenever ANY drag is active (so it's obvious every
-             pane is a valid target, not just wherever the cursor happens to be),
-             and a stronger bordered ZoneHighlight for the specific edge/center
-             zone currently being hovered. -->
+             Covers the whole pane (not just the tab strip) so dropping on an edge
+             here is what triggers a split. Two layers: a faint tint across the whole
+             pane whenever ANY drag is active (so it's obvious every pane is a valid
+             target, not just wherever the cursor happens to be), and DockGuide - a
+             fixed, pane-centered cluster of 5 small chips (left/right/top/bottom/
+             center, arranged in a plus layout) mirroring the docking-guide pattern
+             from Windows 11 File Explorer/Visual Studio. Zone *detection* is
+             unchanged from before this visual redesign (still ComputeZone's 25%
+             edge-band distance check against the raw pointer position, in the
+             code-behind) - only the feedback changed, from a resized colored Border
+             + text label previewing the resulting split size, to highlighting
+             whichever one of these 5 chips matches the already-computed zone. -->
         <Grid x:Name="DragOverlay" Background="Transparent" Visibility="Collapsed"
               AllowDrop="True" DragOver="DragOverlay_DragOver" DragLeave="DragOverlay_DragLeave" Drop="DragOverlay_Drop">
             <Border Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.06" />
-            <Border x:Name="ZoneHighlight" Visibility="Collapsed"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.45"
-                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2">
-                <TextBlock x:Name="ZoneHighlightLabel" HorizontalAlignment="Center" VerticalAlignment="Center"
-                           FontWeight="SemiBold" FontSize="14" Foreground="White" TextAlignment="Center" />
-            </Border>
+
+            <Grid x:Name="DockGuide" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  RowSpacing="4" ColumnSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="DockGuideTopChip" Grid.Row="0" Grid.Column="1" Style="{StaticResource DockGuideChipStyle}">
+                    <FontIcon x:Name="DockGuideTopIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="14" />
+                </Border>
+                <Border x:Name="DockGuideLeftChip" Grid.Row="1" Grid.Column="0" Style="{StaticResource DockGuideChipStyle}">
+                    <FontIcon x:Name="DockGuideLeftIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE72B;" FontSize="14" />
+                </Border>
+                <Border x:Name="DockGuideCenterChip" Grid.Row="1" Grid.Column="1" Style="{StaticResource DockGuideChipStyle}" />
+                <Border x:Name="DockGuideRightChip" Grid.Row="1" Grid.Column="2" Style="{StaticResource DockGuideChipStyle}">
+                    <FontIcon x:Name="DockGuideRightIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="14" />
+                </Border>
+                <Border x:Name="DockGuideBottomChip" Grid.Row="2" Grid.Column="1" Style="{StaticResource DockGuideChipStyle}">
+                    <FontIcon x:Name="DockGuideBottomIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="14" />
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

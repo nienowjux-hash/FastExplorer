@@ -2,6 +2,7 @@ using FastExplorer.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 
@@ -46,7 +47,7 @@ public sealed partial class PaneGroupView : UserControl
     private void OnDragEnded()
     {
         DragOverlay.Visibility = Visibility.Collapsed;
-        ZoneHighlight.Visibility = Visibility.Collapsed;
+        DockGuide.Visibility = Visibility.Collapsed;
     }
 
     // Pointer-down anywhere in this pane (not just its TabView) marks it as the
@@ -132,10 +133,10 @@ public sealed partial class PaneGroupView : UserControl
         }
 
         e.AcceptedOperation = DataPackageOperation.Move;
-        ShowZoneHighlight(ComputeZone(e.GetPosition(DragOverlay), DragOverlay.ActualWidth, DragOverlay.ActualHeight));
+        UpdateDockGuide(ComputeZone(e.GetPosition(DragOverlay), DragOverlay.ActualWidth, DragOverlay.ActualHeight));
     }
 
-    private void DragOverlay_DragLeave(object sender, DragEventArgs e) => ZoneHighlight.Visibility = Visibility.Collapsed;
+    private void DragOverlay_DragLeave(object sender, DragEventArgs e) => DockGuide.Visibility = Visibility.Collapsed;
 
     private void DragOverlay_Drop(object sender, DragEventArgs e)
     {
@@ -178,47 +179,34 @@ public sealed partial class PaneGroupView : UserControl
         return closest.Distance < EdgeZoneFraction ? closest.Zone : DockZone.Center;
     }
 
-    // The trigger band (EdgeZoneFraction, 25%) is deliberately smaller than what
-    // gets previewed here: showing only that thin 25% strip made it unclear the
-    // drop would actually produce an even 50/50 split (matching SplitPaneNode's
-    // default equal FirstLength/SecondLength) - previewing the real resulting
-    // half, with a label naming the action, is what actually communicates it.
-    private const double PreviewSizeFraction = 0.5;
-
-    private void ShowZoneHighlight(DockZone zone)
+    // Docking-guide cluster (Windows 11 File Explorer/Visual Studio style): a fixed,
+    // pane-centered plus-arrangement of 5 chips, one per DockZone. Only the currently
+    // computed zone's chip is highlighted - detection itself (ComputeZone above) is
+    // unchanged from the previous colored-band visual, this only changes the feedback.
+    private void UpdateDockGuide(DockZone zone)
     {
-        ZoneHighlight.Visibility = Visibility.Visible;
-        ZoneHighlight.HorizontalAlignment = HorizontalAlignment.Stretch;
-        ZoneHighlight.VerticalAlignment = VerticalAlignment.Stretch;
-        ZoneHighlight.Width = double.NaN;
-        ZoneHighlight.Height = double.NaN;
+        DockGuide.Visibility = Visibility.Visible;
+        SetChipActive(DockGuideLeftChip, DockGuideLeftIcon, zone == DockZone.Left);
+        SetChipActive(DockGuideRightChip, DockGuideRightIcon, zone == DockZone.Right);
+        SetChipActive(DockGuideTopChip, DockGuideTopIcon, zone == DockZone.Top);
+        SetChipActive(DockGuideBottomChip, DockGuideBottomIcon, zone == DockZone.Bottom);
+        SetChipActive(DockGuideCenterChip, null, zone == DockZone.Center);
+    }
 
-        switch (zone)
+    private static void SetChipActive(Border chip, FontIcon? icon, bool active)
+    {
+        if (active)
         {
-            case DockZone.Left:
-                ZoneHighlight.HorizontalAlignment = HorizontalAlignment.Left;
-                ZoneHighlight.Width = DragOverlay.ActualWidth * PreviewSizeFraction;
-                ZoneHighlightLabel.Text = "Dividir à esquerda";
-                break;
-            case DockZone.Right:
-                ZoneHighlight.HorizontalAlignment = HorizontalAlignment.Right;
-                ZoneHighlight.Width = DragOverlay.ActualWidth * PreviewSizeFraction;
-                ZoneHighlightLabel.Text = "Dividir à direita";
-                break;
-            case DockZone.Top:
-                ZoneHighlight.VerticalAlignment = VerticalAlignment.Top;
-                ZoneHighlight.Height = DragOverlay.ActualHeight * PreviewSizeFraction;
-                ZoneHighlightLabel.Text = "Dividir acima";
-                break;
-            case DockZone.Bottom:
-                ZoneHighlight.VerticalAlignment = VerticalAlignment.Bottom;
-                ZoneHighlight.Height = DragOverlay.ActualHeight * PreviewSizeFraction;
-                ZoneHighlightLabel.Text = "Dividir abaixo";
-                break;
-            case DockZone.Center:
-            default:
-                ZoneHighlightLabel.Text = "Mover para esta aba";
-                break;
+            var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            chip.Background = accent;
+            chip.BorderBrush = accent;
+            if (icon is not null) icon.Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"];
+        }
+        else
+        {
+            chip.ClearValue(Border.BackgroundProperty);
+            chip.ClearValue(Border.BorderBrushProperty);
+            if (icon is not null) icon.ClearValue(FontIcon.ForegroundProperty);
         }
     }
 }
