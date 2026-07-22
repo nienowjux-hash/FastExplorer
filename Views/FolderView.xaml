@@ -223,6 +223,7 @@
                       SelectionChanged="FileList_SelectionChanged"
                       RightTapped="FileList_RightTapped"
                       KeyDown="FileList_KeyDown"
+                      CharacterReceived="FileList_CharacterReceived"
                       CanDragItems="True"
                       DragItemsStarting="FileList_DragItemsStarting"
                       ContainerContentChanging="FileList_ContainerContentChanging"

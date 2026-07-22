@@ -21,6 +21,12 @@ public sealed partial class FolderView : UserControl
 {
     private TabViewModel? ViewModel => DataContext as TabViewModel;
 
+    // Type-ahead ("press a letter, jump to the first item starting with it") state -
+    // see FileList_CharacterReceived.
+    private string _typeAheadPrefix = string.Empty;
+    private DateTime _typeAheadLastKeystroke;
+    private static readonly TimeSpan TypeAheadResetInterval = TimeSpan.FromSeconds(1);
+
     public FolderView()
     {
         InitializeComponent();
@@ -361,6 +367,59 @@ public sealed partial class FolderView : UserControl
                 FileList.SelectAll();
                 e.Handled = true;
                 break;
+        }
+    }
+
+    // Mirrors Explorer's "type a letter, jump to the first matching item" behavior.
+    // Uses CharacterReceived (not FileList_KeyDown's VirtualKey switch above) since it
+    // hands over the actual typed Unicode character - correctly handling accented
+    // names (ç, ã, é...) and Shift/keyboard-layout differences without hand-mapping
+    // VirtualKey.A..Z, and it doesn't fire for Ctrl-chord shortcuts (Ctrl+C etc.),
+    // so there's no overlap with FileList_KeyDown's own handling of those.
+    private void FileList_CharacterReceived(UIElement sender, CharacterReceivedRoutedEventArgs args)
+    {
+        if (ViewModel is not { } vm || vm.Items.Count == 0) return;
+
+        var typed = args.Character;
+        if (char.IsControl(typed)) return;
+
+        var now = DateTime.UtcNow;
+        var withinBurst = now - _typeAheadLastKeystroke <= TypeAheadResetInterval;
+        _typeAheadLastKeystroke = now;
+
+        // Repeatedly pressing the *same* letter within the burst window doesn't
+        // extend the search string (typing "d","d","d" isn't a search for "ddd") -
+        // it cycles the selection through every match of that one letter instead,
+        // matching Explorer/WPF ListBox type-ahead convention.
+        bool cycleToNext;
+        if (!withinBurst)
+        {
+            _typeAheadPrefix = typed.ToString();
+            cycleToNext = false;
+        }
+        else if (_typeAheadPrefix.Length > 0 && _typeAheadPrefix.All(c => c == typed))
+        {
+            cycleToNext = true;
+        }
+        else
+        {
+            _typeAheadPrefix += typed;
+            cycleToNext = false;
+        }
+
+        var currentIndex = vm.SelectedItem is { } selected ? vm.Items.IndexOf(selected) : -1;
+        var startIndex = cycleToNext ? (currentIndex + 1) % vm.Items.Count : 0;
+
+        for (var offset = 0; offset < vm.Items.Count; offset++)
+        {
+            var index = (startIndex + offset) % vm.Items.Count;
+            var candidate = vm.Items[index];
+            if (!candidate.Name.StartsWith(_typeAheadPrefix, StringComparison.CurrentCultureIgnoreCase)) continue;
+
+            FileList.SelectedItem = candidate;
+            FileList.ScrollIntoView(candidate);
+            args.Handled = true;
+            return;
         }
     }
 
