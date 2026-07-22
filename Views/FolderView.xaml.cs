@@ -47,21 +47,66 @@ public sealed partial class FolderView : UserControl
         // and anything less than fully opaque silently fails to hit-test for pointer
         // input here (Transparent, alpha=1/255, and alpha=16/255 were all tried and all
         // failed; only a literal, guaranteed-alpha=255 brush - first proven with a
-        // throwaway solid Magenta - actually works). This forces alpha=255 on top of
-        // whatever color the current theme's page background resolves to, so it's
-        // reliably opaque while still matching the visible theme. WeakReferenceMessenger
-        // registration (no explicit unregister - FolderView has no Dispose, and the
-        // messenger holds this only weakly) keeps it in sync if the user switches theme.
-        ApplyOpaqueFileListAreaBackground();
+        // throwaway solid Magenta - actually works). ThemeChangedMessage (not
+        // ActualThemeChanged - see ApplyOpaqueFileListAreaBackground for why) keeps it
+        // in sync when the user switches theme.
+        ApplyOpaqueFileListAreaBackground(SettingsService.LoadTheme());
         WeakReferenceMessenger.Default.Register<FolderView, ThemeChangedMessage>(
-            this, (recipient, _) => recipient.ApplyOpaqueFileListAreaBackground());
+            this, (recipient, message) => recipient.ApplyOpaqueFileListAreaBackground(message.Theme));
     }
 
-    private void ApplyOpaqueFileListAreaBackground()
+    // Hardcoded to WinUI's own known default colors (Microsoft.WindowsAppSDK.WinUI's
+    // Themes/generic.xaml: ApplicationPageBackgroundThemeBrush -> SolidBackgroundFillColorBase,
+    // #202020 Dark / #F3F3F3 Light) and driven by AppTheme - carried directly as data
+    // in ThemeChangedMessage's payload, or read once from SettingsService at
+    // construction - never derived from any resource/brush/ActualTheme lookup on this
+    // element's own visual tree at runtime, after several earlier attempts at that
+    // all proved unreliable in different ways:
+    //   1. Application.Current.Resources["ApplicationPageBackgroundThemeBrush"] - not
+    //      scoped to this element's actual per-subtree theme (set via MainWindow's
+    //      RootGrid.RequestedTheme, a per-subtree override, not an app-global setting),
+    //      so it never updated after the very first theme it happened to resolve to.
+    //   2. Application.Current.Resources.ThemeDictionaries[themeKey][...] - wrong
+    //      assumption about where that resource is actually merged from; always fell
+    //      through to a black fallback.
+    //   3. Copying FolderViewRoot.Background (a live, correctly-updating {ThemeResource}
+    //      XAML binding one element over), re-read on ActualThemeChanged - correct in
+    //      principle, but observably stale by exactly one toggle when read inline.
+    //   4. Same idea, but deferred one dispatcher tick (DispatcherQueue.TryEnqueue) to
+    //      let sibling {ThemeResource} bindings finish re-resolving first - still
+    //      intermittently stale.
+    //   5. Matching a literal color directly off this element's own ActualTheme inside
+    //      its ActualThemeChanged handler (no resource lookup at all, seemingly the
+    //      most bulletproof option) - *still* observed stale on a subsequent toggle.
+    //      FolderView is nested inside dynamically-composed content (TabView's
+    //      TabItemTemplate, itself hosted by PaneGroupView's TabView, reached via a
+    //      DataTemplateSelector-driven ContentControl - see PaneNode.cs/
+    //      PaneNodeTemplateSelector) rather than a plain static XAML tree, and
+    //      ActualTheme/ActualThemeChanged apparently doesn't reliably propagate
+    //      through that composition the way a declarative {ThemeResource} XAML
+    //      binding does (which is why MainWindow's own RootGrid background - a plain
+    //      XAML binding, not a C# event handler - has always updated correctly).
+    // ThemeChangedMessage sidesteps all of that: it's sent explicitly and
+    // deterministically from MainViewModel.OnSelectedThemeChanged exactly once per
+    // theme selection, independent of whatever WinUI's internal theme-cascade
+    // machinery does or doesn't do through this app's specific visual composition.
+    private static readonly Windows.UI.Color DarkPageBackground = Windows.UI.Color.FromArgb(255, 0x20, 0x20, 0x20);
+    private static readonly Windows.UI.Color LightPageBackground = Windows.UI.Color.FromArgb(255, 0xF3, 0xF3, 0xF3);
+
+    private void ApplyOpaqueFileListAreaBackground(AppTheme theme)
     {
-        var themeColor = (Application.Current.Resources["ApplicationPageBackgroundThemeBrush"] as SolidColorBrush)?.Color
-            ?? Microsoft.UI.Colors.Black;
-        FileListArea.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, themeColor.R, themeColor.G, themeColor.B));
+        // AppTheme.System has no fixed answer here - it means "whatever Windows is
+        // currently set to" - so this is the one remaining case that still asks
+        // ActualTheme, but only as a last resort for that one case, not as the
+        // primary signal for the explicit Light/Dark selections this bug was actually
+        // about.
+        var isLight = theme switch
+        {
+            AppTheme.Light => true,
+            AppTheme.Dark => false,
+            _ => ActualTheme == ElementTheme.Light,
+        };
+        FileListArea.Background = new SolidColorBrush(isLight ? LightPageBackground : DarkPageBackground);
     }
 
     private void FileListArea_RightTapped(object sender, RightTappedRoutedEventArgs e)
