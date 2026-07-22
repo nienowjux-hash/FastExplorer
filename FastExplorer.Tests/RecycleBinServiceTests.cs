@@ -3,6 +3,10 @@ using Xunit;
 
 namespace FastExplorer.Tests;
 
+// Restores via real Shell.Application COM automation against the host machine's
+// actual Recycle Bin - see ShellContextMenuTests for why this needs a genuine
+// interactive desktop session and is excluded from CI (ci.yml/release.yml).
+[Trait("Category", "RequiresDesktop")]
 public class RecycleBinServiceTests : IDisposable
 {
     private readonly string _root;

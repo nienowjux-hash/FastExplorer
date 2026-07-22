@@ -3,6 +3,13 @@ using Xunit;
 
 namespace FastExplorer.Tests;
 
+// Exercises real COM interop (IShellFolder/IContextMenu) against the host machine's
+// actual shell - needs a genuine interactive desktop session to behave, unlike every
+// other test in this project. Tagged so CI (ci.yml/release.yml) can exclude it: these
+// calls were observed to hang indefinitely (not fail) on a GitHub Actions Windows
+// runner, apparently because it lacks whatever a real logged-in desktop session
+// provides for STA-affine shell COM objects to complete cross-apartment calls.
+[Trait("Category", "RequiresDesktop")]
 public class ShellContextMenuTests : IDisposable
 {
     private readonly string _root;

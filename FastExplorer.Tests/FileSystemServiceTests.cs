@@ -82,6 +82,11 @@ public class FileSystemServiceTests : IDisposable
         Assert.False(File.Exists(path));
     }
 
+    // Verifies via real Shell.Application COM automation against the host machine's
+    // actual Recycle Bin - see ShellContextMenuTests for why this needs a genuine
+    // interactive desktop session and is excluded from CI (ci.yml/release.yml). Every
+    // other test in this class is a plain filesystem test and stays unfiltered.
+    [Trait("Category", "RequiresDesktop")]
     [Fact]
     public void Delete_ToRecycleBin_ItemAppearsInRecycleBin()
     {

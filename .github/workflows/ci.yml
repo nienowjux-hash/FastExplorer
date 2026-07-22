@@ -24,5 +24,15 @@ jobs:
       - name: Build
         run: dotnet build FastExplorer.sln -c Release --no-restore
 
+      # Category=RequiresDesktop tests (ShellContextMenuTests, RecycleBinServiceTests,
+      # FileSystemServiceTests.Delete_ToRecycleBin_ItemAppearsInRecycleBin) exercise
+      # real Shell COM automation against the host's actual desktop/Recycle Bin -
+      # these hung indefinitely (not failed) on a GitHub Actions Windows runner rather
+      # than on a real machine, so they're excluded here specifically; run in full
+      # locally (see CLAUDE.md). --blame-hang-timeout is a safety net so any other
+      # future hang fails fast with a dump instead of running for hours.
       - name: Test
-        run: dotnet test FastExplorer.Tests/FastExplorer.Tests.csproj -c Release -p:Platform=x64
+        run: >
+          dotnet test FastExplorer.Tests/FastExplorer.Tests.csproj -c Release -p:Platform=x64
+          --filter "Category!=RequiresDesktop"
+          --blame-hang-timeout 120s --blame-hang-dump-type mini
