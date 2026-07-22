@@ -8,7 +8,13 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: windows-latest
+    # Pinned, not windows-latest: that resolved to windows-2025-vs2026 (a very
+    # recent image) and the test host process crashed outright there mid-run,
+    # implicating tests with zero OS/COM interaction at all (TreemapLayoutTests,
+    # IconGlyphMapTests - pure computation) - runner-image instability, not
+    # anything in this repo's own tests. windows-2022 is long-established and
+    # far more battle-tested for .NET/WinUI workloads.
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v4
