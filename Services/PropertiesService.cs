@@ -103,8 +103,8 @@ public static class PropertiesService
             {
                 rules.Add(new AccessRuleInfo(
                     rule.IdentityReference.Value,
-                    rule.AccessControlType.ToString(),
-                    rule.FileSystemRights.ToString()));
+                    TranslateAccessType(rule.AccessControlType),
+                    TranslateRights(rule.FileSystemRights)));
             }
 
             return (owner, rules);
@@ -113,5 +113,50 @@ public static class PropertiesService
         {
             return ("Indisponível", Array.Empty<AccessRuleInfo>());
         }
+    }
+
+    private static string TranslateAccessType(AccessControlType type) => type switch
+    {
+        AccessControlType.Allow => "Permitir",
+        AccessControlType.Deny => "Negar",
+        _ => type.ToString(),
+    };
+
+    // FileSystemRights.ToString() (a [Flags] enum) returns a comma-separated list of
+    // the *named* combination it resolves to (e.g. "Modify, Synchronize"), not a fixed
+    // set of values - each token is translated independently and rejoined so unknown/
+    // future .NET-added tokens degrade to their English name rather than disappearing.
+    private static readonly Dictionary<string, string> RightsTokens = new()
+    {
+        ["FullControl"] = "Controle total",
+        ["Modify"] = "Modificar",
+        ["ReadAndExecute"] = "Leitura e execução",
+        ["ListDirectory"] = "Listar conteúdo da pasta",
+        ["ReadData"] = "Ler dados",
+        ["Read"] = "Leitura",
+        ["Write"] = "Gravação",
+        ["Delete"] = "Excluir",
+        ["DeleteSubdirectoriesAndFiles"] = "Excluir subpastas e arquivos",
+        ["ReadPermissions"] = "Ler permissões",
+        ["ChangePermissions"] = "Alterar permissões",
+        ["TakeOwnership"] = "Tomar posse",
+        ["Synchronize"] = "Sincronizar",
+        ["ReadAttributes"] = "Ler atributos",
+        ["WriteAttributes"] = "Gravar atributos",
+        ["ReadExtendedAttributes"] = "Ler atributos estendidos",
+        ["WriteExtendedAttributes"] = "Gravar atributos estendidos",
+        ["ExecuteFile"] = "Executar arquivo",
+        ["Traverse"] = "Percorrer pasta",
+        ["CreateFiles"] = "Criar arquivos",
+        ["WriteData"] = "Gravar dados",
+        ["CreateDirectories"] = "Criar pastas",
+        ["AppendData"] = "Acrescentar dados",
+    };
+
+    private static string TranslateRights(FileSystemRights rights)
+    {
+        var tokens = rights.ToString().Split(", ", StringSplitOptions.TrimEntries);
+        var translated = tokens.Select(t => RightsTokens.TryGetValue(t, out var pt) ? pt : t);
+        return string.Join(", ", translated);
     }
 }

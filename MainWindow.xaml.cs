@@ -125,6 +125,20 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void RecycleBinButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Lixeira",
+            Content = new RecycleBinView(),
+            CloseButtonText = "Fechar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootGrid.XamlRoot,
+        };
+        await dialog.ShowAsync();
+        ViewModel.ActivePane.SelectedTab?.RefreshCommand.Execute(null);
+    }
+
     private void NewTabAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         ViewModel.NewTab(ViewModel.ActivePane);

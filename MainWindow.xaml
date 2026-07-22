@@ -62,6 +62,8 @@
                             Background="Transparent" BorderThickness="0" Click="ThisPcButton_Click" />
                     <Button Content="Mapear unidade de rede..." HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Background="Transparent" BorderThickness="0" Click="MapNetworkDriveButton_Click" />
+                    <Button Content="Lixeira" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Background="Transparent" BorderThickness="0" Click="RecycleBinButton_Click" />
 
                     <TextBlock Text="Tema" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
                     <ComboBox ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
