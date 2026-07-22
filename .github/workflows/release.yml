@@ -1,0 +1,48 @@
+name: Release
+
+# Triggered by pushing a tag like "v0.2.0" - builds a self-contained win-x64
+# publish (bundles the .NET runtime and Windows App SDK runtime, so nothing
+# needs to be pre-installed on the machine it's unzipped on) and attaches it
+# as a GitHub Release asset. install.ps1 downloads whatever release is
+# "latest" here.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore FastExplorer.sln
+
+      - name: Test
+        run: dotnet test FastExplorer.Tests/FastExplorer.Tests.csproj -c Release -p:Platform=x64 --no-restore
+
+      - name: Publish self-contained win-x64
+        run: >
+          dotnet publish FastExplorer.csproj -c Release -p:Platform=x64 -r win-x64
+          --self-contained true -p:WindowsAppSDKSelfContained=true
+          -o publish/win-x64
+
+      - name: Zip release
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath FastExplorer-win-x64.zip
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" FastExplorer-win-x64.zip
+          --title "FastExplorer ${{ github.ref_name }}" --generate-notes

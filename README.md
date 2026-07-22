@@ -36,14 +36,34 @@ slow drives, or unreachable network shares.
 
 ## Requirements
 
-- Windows 10 (10.0.19041.0) or later, x64 or ARM64
+- Windows 10 (10.0.19041.0) or later, x64
+
+## Installing (one command)
+
+Open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/nienowjux-hash/FastExplorer/main/install.ps1 | iex
+```
+
+This downloads the latest release (a self-contained build — it bundles the
+.NET runtime and Windows App SDK runtime, so there's nothing else to install
+first), puts it in `%LocalAppData%\Programs\FastExplorer`, creates Start Menu
+and Desktop shortcuts, best-effort pins it to the taskbar, and opens it.
+
+Re-running the same command later updates to the newest release.
+
+> Taskbar pinning isn't guaranteed — Windows (especially since 11 22H2+) has
+> locked down programmatic pinning to stop malware from doing exactly this.
+> If it doesn't show up pinned, right-click the running app's taskbar icon
+> and choose "Pin to taskbar" — the installer prints this same reminder.
+
+## Building from source
+
+Building from source (for development) requires the full toolchain instead:
+
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Windows App SDK runtime/tooling (restored automatically via NuGet on build)
-
-There's no packaged installer yet — FastExplorer is unpackaged (no MSIX) and
-run from a local build.
-
-## Installing / building from source
+- Windows App SDK tooling (restored automatically via NuGet on build)
 
 ```powershell
 git clone https://github.com/nienowjux-hash/FastExplorer.git
