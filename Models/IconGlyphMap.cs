@@ -36,103 +36,108 @@ public static class IconGlyphMap
 
     private static string G(int codePoint) => ((char)codePoint).ToString();
 
-    private sealed record IconStyle(int Code, string? ColorHex);
+    // Category rides along with the icon/color choice - both are ultimately the same
+    // "what kind of file is this extension" lookup, so FileTypeCategory (used by the
+    // Filtrar flyout in FolderView) is derived from this table instead of a second,
+    // separately-maintained extension list that could drift out of sync with the icons.
+    private sealed record IconStyle(int Code, string? ColorHex, FileTypeCategory Category);
 
     private static readonly Dictionary<string, IconStyle> ExtensionStyles = new(StringComparer.OrdinalIgnoreCase)
     {
         // Documents - reuse the plain document glyph, tinted per app so the list
         // reads by color the way Explorer's real icons do, without extracting them.
-        [".pdf"] = new IconStyle(PdfCode, PdfColor),
-        [".doc"] = new IconStyle(DocumentCode, WordColor),
-        [".docx"] = new IconStyle(DocumentCode, WordColor),
-        [".docm"] = new IconStyle(DocumentCode, WordColor),
-        [".rtf"] = new IconStyle(DocumentCode, WordColor),
-        [".odt"] = new IconStyle(DocumentCode, WordColor),
-        [".xls"] = new IconStyle(DocumentCode, ExcelColor),
-        [".xlsx"] = new IconStyle(DocumentCode, ExcelColor),
-        [".xlsm"] = new IconStyle(DocumentCode, ExcelColor),
-        [".csv"] = new IconStyle(DocumentCode, ExcelColor),
-        [".ods"] = new IconStyle(DocumentCode, ExcelColor),
-        [".ppt"] = new IconStyle(DocumentCode, PowerPointColor),
-        [".pptx"] = new IconStyle(DocumentCode, PowerPointColor),
-        [".pptm"] = new IconStyle(DocumentCode, PowerPointColor),
-        [".odp"] = new IconStyle(DocumentCode, PowerPointColor),
+        [".pdf"] = new IconStyle(PdfCode, PdfColor, FileTypeCategory.Document),
+        [".doc"] = new IconStyle(DocumentCode, WordColor, FileTypeCategory.Document),
+        [".docx"] = new IconStyle(DocumentCode, WordColor, FileTypeCategory.Document),
+        [".docm"] = new IconStyle(DocumentCode, WordColor, FileTypeCategory.Document),
+        [".rtf"] = new IconStyle(DocumentCode, WordColor, FileTypeCategory.Document),
+        [".odt"] = new IconStyle(DocumentCode, WordColor, FileTypeCategory.Document),
+        [".xls"] = new IconStyle(DocumentCode, ExcelColor, FileTypeCategory.Document),
+        [".xlsx"] = new IconStyle(DocumentCode, ExcelColor, FileTypeCategory.Document),
+        [".xlsm"] = new IconStyle(DocumentCode, ExcelColor, FileTypeCategory.Document),
+        [".csv"] = new IconStyle(DocumentCode, ExcelColor, FileTypeCategory.Document),
+        [".ods"] = new IconStyle(DocumentCode, ExcelColor, FileTypeCategory.Document),
+        [".ppt"] = new IconStyle(DocumentCode, PowerPointColor, FileTypeCategory.Document),
+        [".pptx"] = new IconStyle(DocumentCode, PowerPointColor, FileTypeCategory.Document),
+        [".pptm"] = new IconStyle(DocumentCode, PowerPointColor, FileTypeCategory.Document),
+        [".odp"] = new IconStyle(DocumentCode, PowerPointColor, FileTypeCategory.Document),
+        [".txt"] = new IconStyle(DocumentCode, null, FileTypeCategory.Document),
 
         // Images
-        [".jpg"] = new IconStyle(PictureCode, PictureColor),
-        [".jpeg"] = new IconStyle(PictureCode, PictureColor),
-        [".png"] = new IconStyle(PictureCode, PictureColor),
-        [".gif"] = new IconStyle(PictureCode, PictureColor),
-        [".bmp"] = new IconStyle(PictureCode, PictureColor),
-        [".svg"] = new IconStyle(PictureCode, PictureColor),
-        [".webp"] = new IconStyle(PictureCode, PictureColor),
-        [".ico"] = new IconStyle(PictureCode, PictureColor),
-        [".heic"] = new IconStyle(PictureCode, PictureColor),
+        [".jpg"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".jpeg"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".png"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".gif"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".bmp"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".svg"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".webp"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".ico"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
+        [".heic"] = new IconStyle(PictureCode, PictureColor, FileTypeCategory.Image),
 
         // Audio
-        [".mp3"] = new IconStyle(AudioCode, AudioColor),
-        [".wav"] = new IconStyle(AudioCode, AudioColor),
-        [".flac"] = new IconStyle(AudioCode, AudioColor),
-        [".aac"] = new IconStyle(AudioCode, AudioColor),
-        [".m4a"] = new IconStyle(AudioCode, AudioColor),
-        [".ogg"] = new IconStyle(AudioCode, AudioColor),
+        [".mp3"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
+        [".wav"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
+        [".flac"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
+        [".aac"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
+        [".m4a"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
+        [".ogg"] = new IconStyle(AudioCode, AudioColor, FileTypeCategory.Audio),
 
         // Video
-        [".mp4"] = new IconStyle(VideoCode, VideoColor),
-        [".mkv"] = new IconStyle(VideoCode, VideoColor),
-        [".avi"] = new IconStyle(VideoCode, VideoColor),
-        [".mov"] = new IconStyle(VideoCode, VideoColor),
-        [".wmv"] = new IconStyle(VideoCode, VideoColor),
-        [".webm"] = new IconStyle(VideoCode, VideoColor),
+        [".mp4"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
+        [".mkv"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
+        [".avi"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
+        [".mov"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
+        [".wmv"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
+        [".webm"] = new IconStyle(VideoCode, VideoColor, FileTypeCategory.Video),
 
         // Archives / disk images
-        [".zip"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".rar"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".7z"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".tar"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".gz"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".bz2"] = new IconStyle(ArchiveCode, ArchiveColor),
-        [".iso"] = new IconStyle(ArchiveCode, ArchiveColor),
+        [".zip"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".rar"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".7z"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".tar"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".gz"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".bz2"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
+        [".iso"] = new IconStyle(ArchiveCode, ArchiveColor, FileTypeCategory.Archive),
 
         // Executables / scripts / installers
-        [".exe"] = new IconStyle(ExecutableCode, null),
-        [".msi"] = new IconStyle(ExecutableCode, null),
-        [".bat"] = new IconStyle(ExecutableCode, null),
-        [".cmd"] = new IconStyle(ExecutableCode, null),
-        [".ps1"] = new IconStyle(ExecutableCode, null),
-        [".sh"] = new IconStyle(ExecutableCode, null),
+        [".exe"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
+        [".msi"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
+        [".bat"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
+        [".cmd"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
+        [".ps1"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
+        [".sh"] = new IconStyle(ExecutableCode, null, FileTypeCategory.Executable),
 
         // Shortcuts
-        [".lnk"] = new IconStyle(LinkCode, null),
-        [".url"] = new IconStyle(LinkCode, null),
+        [".lnk"] = new IconStyle(LinkCode, null, FileTypeCategory.Other),
+        [".url"] = new IconStyle(LinkCode, null, FileTypeCategory.Other),
 
         // Code / config / data
-        [".cs"] = new IconStyle(CodeCode, CodeColor),
-        [".cpp"] = new IconStyle(CodeCode, CodeColor),
-        [".c"] = new IconStyle(CodeCode, CodeColor),
-        [".h"] = new IconStyle(CodeCode, CodeColor),
-        [".js"] = new IconStyle(CodeCode, CodeColor),
-        [".ts"] = new IconStyle(CodeCode, CodeColor),
-        [".py"] = new IconStyle(CodeCode, CodeColor),
-        [".java"] = new IconStyle(CodeCode, CodeColor),
-        [".go"] = new IconStyle(CodeCode, CodeColor),
-        [".rs"] = new IconStyle(CodeCode, CodeColor),
-        [".php"] = new IconStyle(CodeCode, CodeColor),
-        [".rb"] = new IconStyle(CodeCode, CodeColor),
-        [".json"] = new IconStyle(CodeCode, CodeColor),
-        [".xml"] = new IconStyle(CodeCode, CodeColor),
-        [".html"] = new IconStyle(CodeCode, CodeColor),
-        [".css"] = new IconStyle(CodeCode, CodeColor),
-        [".yml"] = new IconStyle(CodeCode, CodeColor),
-        [".yaml"] = new IconStyle(CodeCode, CodeColor),
-        [".toml"] = new IconStyle(CodeCode, CodeColor),
-        [".ini"] = new IconStyle(CodeCode, CodeColor),
-        [".config"] = new IconStyle(CodeCode, CodeColor),
-        [".sql"] = new IconStyle(CodeCode, CodeColor),
+        [".cs"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".cpp"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".c"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".h"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".js"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".ts"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".py"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".java"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".go"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".rs"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".php"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".rb"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".json"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".xml"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".html"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".css"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".yml"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".yaml"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".toml"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".ini"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".config"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
+        [".sql"] = new IconStyle(CodeCode, CodeColor, FileTypeCategory.Code),
 
         // Fonts
-        [".ttf"] = new IconStyle(FontCode, null),
-        [".otf"] = new IconStyle(FontCode, null),
+        [".ttf"] = new IconStyle(FontCode, null, FileTypeCategory.Font),
+        [".otf"] = new IconStyle(FontCode, null, FileTypeCategory.Font),
     };
 
     public static string GetGlyph(FileSystemItem item)
@@ -154,5 +159,11 @@ public static class IconGlyphMap
             FileSystemItemKind.Directory => FolderColor,
             _ => ExtensionStyles.TryGetValue(item.Extension, out var style) ? style.ColorHex : null,
         };
+    }
+
+    public static FileTypeCategory GetCategory(FileSystemItem item)
+    {
+        if (item.IsDirectory) return FileTypeCategory.Folder;
+        return ExtensionStyles.TryGetValue(item.Extension, out var style) ? style.Category : FileTypeCategory.Other;
     }
 }

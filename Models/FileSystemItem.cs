@@ -33,6 +33,7 @@ public partial class FileSystemItem : ObservableObject
     public FileSystemItemKind Kind { get; init; }
     public long SizeBytes { get; init; }
     public DateTime DateModified { get; init; }
+    public DateTime DateCreated { get; init; }
     public string Extension { get; init; } = string.Empty;
     public long? DriveTotalBytes { get; init; }
     public long? DriveFreeBytes { get; init; }
@@ -59,6 +60,10 @@ public partial class FileSystemItem : ObservableObject
     public string DateModifiedDisplay => DateModified == default ? string.Empty : DateModified.ToString("g");
 
     public string IconGlyph => IconGlyphMap.GetGlyph(this);
+
+    // Drives the "Filtrar" flyout in FolderView (TabViewModel.FilterCategory) - same
+    // extension grouping the icon/color already use, see IconGlyphMap.GetCategory.
+    public FileTypeCategory Category => IconGlyphMap.GetCategory(this);
 
     public string? IconColorHex => IconGlyphMap.GetColorHex(this);
 

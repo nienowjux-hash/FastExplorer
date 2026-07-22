@@ -128,6 +128,7 @@ public static class FileSystemService
             Kind = isDirectory ? FileSystemItemKind.Directory : FileSystemItemKind.File,
             SizeBytes = size,
             DateModified = entry.LastWriteTime,
+            DateCreated = entry.CreationTime,
             Extension = isDirectory ? string.Empty : entry.Extension,
             IsCloudPlaceholder = (rawAttributes & FileAttributeRecallOnDataAccess) != 0,
             IsCloudPinned = (rawAttributes & FileAttributePinned) != 0,

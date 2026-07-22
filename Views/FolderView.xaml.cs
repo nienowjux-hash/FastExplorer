@@ -170,6 +170,71 @@ public sealed partial class FolderView : UserControl
         ViewModel?.SortByCommand.Execute(field);
     }
 
+    // Syncs the flyout's RadioMenuFlyoutItems to the ViewModel's current sort state
+    // every time it opens - the items themselves only update IsChecked in response to
+    // being clicked (RadioMenuFlyoutItem's own built-in group behavior), so without
+    // this they'd drift out of sync with sorting done via the column headers instead
+    // (SortHeader_Click/SortByCommand), which don't touch these controls at all.
+    private void SortFlyout_Opening(object sender, object e)
+    {
+        if (ViewModel is not { } vm) return;
+        var fieldItem = vm.SortField switch
+        {
+            SortField.Size => SortSizeItem,
+            SortField.Modified => SortModifiedItem,
+            SortField.Created => SortCreatedItem,
+            _ => SortNameItem,
+        };
+        fieldItem.IsChecked = true;
+        (vm.SortDescending ? SortDescItem : SortAscItem).IsChecked = true;
+    }
+
+    private void SortFieldItem_Click(object sender, RoutedEventArgs e)
+    {
+        var tag = (string)((RadioMenuFlyoutItem)sender).Tag;
+        var field = tag switch
+        {
+            "Size" => SortField.Size,
+            "Modified" => SortField.Modified,
+            "Created" => SortField.Created,
+            _ => SortField.Name,
+        };
+        ViewModel?.SetSortFieldCommand.Execute(field);
+    }
+
+    private void SortDirectionItem_Click(object sender, RoutedEventArgs e)
+    {
+        var tag = (string)((RadioMenuFlyoutItem)sender).Tag;
+        ViewModel?.SetSortDescendingCommand.Execute(tag == "Desc");
+    }
+
+    private void FilterFlyout_Opening(object sender, object e)
+    {
+        if (ViewModel is not { } vm) return;
+        var item = vm.FilterCategory switch
+        {
+            FileTypeCategory.Folder => FilterFolderItem,
+            FileTypeCategory.Document => FilterDocumentItem,
+            FileTypeCategory.Image => FilterImageItem,
+            FileTypeCategory.Audio => FilterAudioItem,
+            FileTypeCategory.Video => FilterVideoItem,
+            FileTypeCategory.Archive => FilterArchiveItem,
+            FileTypeCategory.Executable => FilterExecutableItem,
+            FileTypeCategory.Code => FilterCodeItem,
+            FileTypeCategory.Font => FilterFontItem,
+            FileTypeCategory.Other => FilterOtherItem,
+            _ => FilterAllItem,
+        };
+        item.IsChecked = true;
+    }
+
+    private void FilterCategoryItem_Click(object sender, RoutedEventArgs e)
+    {
+        var tag = (string)((RadioMenuFlyoutItem)sender).Tag;
+        var category = Enum.Parse<FileTypeCategory>(tag);
+        ViewModel?.SetFilterCategoryCommand.Execute(category);
+    }
+
     private void ViewToggleButton_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not { } vm) return;

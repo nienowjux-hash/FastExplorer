@@ -62,6 +62,13 @@ public partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool sortDescending;
 
+    // "Todos" means no filtering - every FileSystemItemKind passes through OrderItems
+    // unchanged. Applied both to ordinary folder loads (LoadFolder) and streaming
+    // search results (RunSearchAsync's OnResult), so switching categories has the
+    // same effect regardless of which populated the current Items.
+    [ObservableProperty]
+    private FileTypeCategory filterCategory = FileTypeCategory.All;
+
     [ObservableProperty]
     private ViewMode viewMode = ViewMode.List;
 
@@ -199,7 +206,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
         try
         {
-            var entries = OrderItems(FileSystemService.EnumerateDirectory(path, _showHiddenFiles)).ToList();
+            var entries = OrderItems(ApplyFilter(FileSystemService.EnumerateDirectory(path, _showHiddenFiles))).ToList();
             if (isSameFolder)
             {
                 ReconcileItems(entries);
@@ -284,6 +291,12 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
+    // "Todos" (FileTypeCategory.All) is the common case, so this is a passthrough
+    // rather than a .Where() with an always-true predicate - avoids an extra
+    // enumerator wrapping every folder load when no filter is active.
+    private IEnumerable<FileSystemItem> ApplyFilter(IEnumerable<FileSystemItem> items) =>
+        FilterCategory == FileTypeCategory.All ? items : items.Where(i => i.Category == FilterCategory);
+
     private IEnumerable<FileSystemItem> OrderItems(IEnumerable<FileSystemItem> items)
     {
         var byKind = items.OrderByDescending(i => i.IsDirectory);
@@ -291,12 +304,15 @@ public partial class TabViewModel : ObservableObject, IDisposable
         {
             SortField.Size => SortDescending ? byKind.ThenByDescending(i => i.SizeBytes) : byKind.ThenBy(i => i.SizeBytes),
             SortField.Modified => SortDescending ? byKind.ThenByDescending(i => i.DateModified) : byKind.ThenBy(i => i.DateModified),
+            SortField.Created => SortDescending ? byKind.ThenByDescending(i => i.DateCreated) : byKind.ThenBy(i => i.DateCreated),
             _ => SortDescending
                 ? byKind.ThenByDescending(i => i.Name, StringComparer.OrdinalIgnoreCase)
                 : byKind.ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase),
         };
     }
 
+    // Column-header click: re-clicking the already-active column flips direction
+    // instead of leaving it unchanged, matching Explorer's header-click convention.
     [RelayCommand]
     private void SortBy(SortField field)
     {
@@ -306,6 +322,30 @@ public partial class TabViewModel : ObservableObject, IDisposable
             SortField = field;
             SortDescending = false;
         }
+        Refresh();
+    }
+
+    // Used by the "Ordenar por" flyout's field/direction RadioMenuFlyoutItems, which
+    // set each independently rather than toggling on re-selection like SortBy does
+    // for column headers - picking "Nome" again there shouldn't flip direction.
+    [RelayCommand]
+    private void SetSortField(SortField field)
+    {
+        SortField = field;
+        Refresh();
+    }
+
+    [RelayCommand]
+    private void SetSortDescending(bool value)
+    {
+        SortDescending = value;
+        Refresh();
+    }
+
+    [RelayCommand]
+    private void SetFilterCategory(FileTypeCategory category)
+    {
+        FilterCategory = category;
         Refresh();
     }
 
@@ -470,6 +510,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         var dispatcherItems = new List<FileSystemItem>();
         void OnResult(FileSystemItem item)
         {
+            if (FilterCategory != FileTypeCategory.All && item.Category != FilterCategory) return;
             App.EnqueueOnUiThread(() =>
             {
                 if (token.IsCancellationRequested) return;

@@ -90,6 +90,40 @@
             <Button x:Name="ViewToggleButton" Click="ViewToggleButton_Click" ToolTipService.ToolTip="Alternar visualização">
                 <FontIcon x:Name="ViewToggleIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE80A;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
+            <Button x:Name="SortButton" ToolTipService.ToolTip="Ordenar"
+                    Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8CB;" FontSize="14" Foreground="{Binding AccentBrush}" />
+                <Button.Flyout>
+                    <MenuFlyout Opening="SortFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="SortNameItem" Text="Nome" Tag="Name" GroupName="SortField" IsChecked="True" Click="SortFieldItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="SortSizeItem" Text="Tamanho" Tag="Size" GroupName="SortField" Click="SortFieldItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="SortModifiedItem" Text="Data de modificação" Tag="Modified" GroupName="SortField" Click="SortFieldItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="SortCreatedItem" Text="Data de criação" Tag="Created" GroupName="SortField" Click="SortFieldItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <RadioMenuFlyoutItem x:Name="SortAscItem" Text="Crescente" Tag="Asc" GroupName="SortDirection" IsChecked="True" Click="SortDirectionItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="SortDescItem" Text="Decrescente" Tag="Desc" GroupName="SortDirection" Click="SortDirectionItem_Click" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            <Button x:Name="FilterButton" ToolTipService.ToolTip="Filtrar por tipo"
+                    Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE71C;" FontSize="14" Foreground="{Binding AccentBrush}" />
+                <Button.Flyout>
+                    <MenuFlyout Opening="FilterFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="FilterAllItem" Text="Todos" Tag="All" GroupName="FilterCategory" IsChecked="True" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterFolderItem" Text="Pastas" Tag="Folder" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterDocumentItem" Text="Documentos" Tag="Document" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterImageItem" Text="Imagens" Tag="Image" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterAudioItem" Text="Áudio" Tag="Audio" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterVideoItem" Text="Vídeo" Tag="Video" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterArchiveItem" Text="Compactados" Tag="Archive" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterExecutableItem" Text="Executáveis" Tag="Executable" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterCodeItem" Text="Código" Tag="Code" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterFontItem" Text="Fontes" Tag="Font" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                        <RadioMenuFlyoutItem x:Name="FilterOtherItem" Text="Outros" Tag="Other" GroupName="FilterCategory" Click="FilterCategoryItem_Click" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
             <Button x:Name="NewButton" ToolTipService.ToolTip="Novo"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8F4;" FontSize="14" Foreground="{Binding AccentBrush}" />
