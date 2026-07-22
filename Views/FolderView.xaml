@@ -124,6 +124,10 @@
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>
+            <Button x:Name="DiskUsageButton" Click="DiskUsageButton_Click" ToolTipService.ToolTip="Analisar espaço em disco"
+                    Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE9D2;" FontSize="14" Foreground="{Binding AccentBrush}" />
+            </Button>
             <Button x:Name="NewButton" ToolTipService.ToolTip="Novo"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8F4;" FontSize="14" Foreground="{Binding AccentBrush}" />
@@ -196,6 +200,7 @@
                 <MenuFlyout x:Name="FileContextMenu" Opening="ContextFlyout_Opening" Closed="ContextFlyout_Closed">
                     <MenuFlyoutItem Text="Abrir" Click="ContextOpen_Click" />
                     <MenuFlyoutItem x:Name="OpenInNewTabItem" Text="Abrir em nova aba" Click="ContextOpenInNewTab_Click" />
+                    <MenuFlyoutItem x:Name="AnalyzeDiskUsageItem" Text="Analisar espaço em disco" Click="ContextAnalyzeDiskUsage_Click" />
                     <MenuFlyoutItem Text="Recortar" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
                     <MenuFlyoutItem Text="Copiar" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
                     <MenuFlyoutItem Text="Colar" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />

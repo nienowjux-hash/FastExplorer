@@ -537,6 +537,29 @@ public sealed partial class FolderView : UserControl
         }
     }
 
+    private async void ContextAnalyzeDiskUsage_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedItem is { IsDirectory: true } item) await ShowDiskUsageAsync(item.FullPath);
+    }
+
+    private async void DiskUsageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is { } vm && !string.IsNullOrEmpty(vm.CurrentPath)) await ShowDiskUsageAsync(vm.CurrentPath);
+    }
+
+    private async Task ShowDiskUsageAsync(string path)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Analisar espaço em disco",
+            Content = new DiskUsageView(path),
+            CloseButtonText = "Fechar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+        await dialog.ShowAsync();
+    }
+
     private void ContextCopyPath_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel?.SelectedItem is not { } item) return;
@@ -626,6 +649,9 @@ public sealed partial class FolderView : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
         OpenInNewTabItem.Visibility = ViewModel?.SelectedItem?.IsDirectory == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AnalyzeDiskUsageItem.Visibility = ViewModel?.SelectedItem?.IsDirectory == true
             ? Visibility.Visible
             : Visibility.Collapsed;
 

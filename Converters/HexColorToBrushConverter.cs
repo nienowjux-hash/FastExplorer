@@ -11,20 +11,27 @@ namespace FastExplorer.Converters;
 // per-type override, so unrecognized file types still look correct in both themes.
 public sealed class HexColorToBrushConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, string language)
+    public object Convert(object value, Type targetType, object parameter, string language) =>
+        ToBrush(value as string);
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
+        throw new NotSupportedException();
+
+    // Exposed as a plain static method (not just the IValueConverter.Convert above) so
+    // code-behind that isn't going through a XAML binding - Controls/DiskUsageView's
+    // treemap cells, built imperatively since their layout is computed at runtime -
+    // can reuse the same hex parsing instead of duplicating it.
+    public static Brush ToBrush(string? hex)
     {
-        if (value is string hex && !string.IsNullOrEmpty(hex) && TryParseHex(hex, out var color))
+        if (!string.IsNullOrEmpty(hex) && TryParseHex(hex, out var color))
         {
             return new SolidColorBrush(color);
         }
 
         return Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var fallback)
-            ? fallback
+            ? (Brush)fallback
             : new SolidColorBrush(Colors.Gray);
     }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
-        throw new NotSupportedException();
 
     private static bool TryParseHex(string hex, out Color color)
     {
