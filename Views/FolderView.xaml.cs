@@ -387,34 +387,51 @@ public sealed partial class FolderView : UserControl
         var withinBurst = now - _typeAheadLastKeystroke <= TypeAheadResetInterval;
         _typeAheadLastKeystroke = now;
 
-        // Repeatedly pressing the *same* letter within the burst window doesn't
-        // extend the search string (typing "d","d","d" isn't a search for "ddd") -
-        // it cycles the selection through every match of that one letter instead,
-        // matching Explorer/WPF ListBox type-ahead convention.
+        // "Confirmed cycling": the burst so far is two or more presses of the exact
+        // same letter (e.g. "d","d") - matching Explorer/WPF ListBox convention that
+        // this means "next match of that one letter", not a literal search for "dd".
+        // A single keystroke is always ambiguous (could be the start of a word like
+        // "do"), so this only applies from the second repeat onward - and critically,
+        // a genuinely different letter arriving while already in this state RESETS
+        // the prefix to just that new letter instead of appending to the old one
+        // (which previously produced dead strings like "dp" that matched nothing
+        // until the burst window timed out - the reported "delay when switching key").
+        var confirmedCycling = withinBurst && _typeAheadPrefix.Length >= 2
+            && _typeAheadPrefix.All(c => c == _typeAheadPrefix[0]);
+
         bool cycleToNext;
         if (!withinBurst)
         {
             _typeAheadPrefix = typed.ToString();
             cycleToNext = false;
         }
-        else if (_typeAheadPrefix.Length > 0 && _typeAheadPrefix.All(c => c == typed))
+        else if (confirmedCycling)
         {
-            cycleToNext = true;
+            if (typed == _typeAheadPrefix[0])
+            {
+                cycleToNext = true;
+            }
+            else
+            {
+                _typeAheadPrefix = typed.ToString();
+                cycleToNext = false;
+            }
         }
         else
         {
             _typeAheadPrefix += typed;
-            cycleToNext = false;
+            cycleToNext = _typeAheadPrefix.Length >= 2 && _typeAheadPrefix.All(c => c == typed);
         }
 
         var currentIndex = vm.SelectedItem is { } selected ? vm.Items.IndexOf(selected) : -1;
         var startIndex = cycleToNext ? (currentIndex + 1) % vm.Items.Count : 0;
+        var searchText = cycleToNext ? typed.ToString() : _typeAheadPrefix;
 
         for (var offset = 0; offset < vm.Items.Count; offset++)
         {
             var index = (startIndex + offset) % vm.Items.Count;
             var candidate = vm.Items[index];
-            if (!candidate.Name.StartsWith(_typeAheadPrefix, StringComparison.CurrentCultureIgnoreCase)) continue;
+            if (!candidate.Name.StartsWith(searchText, StringComparison.CurrentCultureIgnoreCase)) continue;
 
             FileList.SelectedItem = candidate;
             FileList.ScrollIntoView(candidate);
