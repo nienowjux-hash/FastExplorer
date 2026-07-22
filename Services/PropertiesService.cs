@@ -96,7 +96,7 @@ public static class PropertiesService
                 ? new DirectoryInfo(path).GetAccessControl()
                 : new FileInfo(path).GetAccessControl();
 
-            var owner = security.GetOwner(typeof(NTAccount))?.Value ?? "Unknown";
+            var owner = security.GetOwner(typeof(NTAccount))?.Value ?? "Desconhecido";
 
             var rules = new List<AccessRuleInfo>();
             foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(NTAccount)))
@@ -111,7 +111,7 @@ public static class PropertiesService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SystemException)
         {
-            return ("Unavailable", Array.Empty<AccessRuleInfo>());
+            return ("Indisponível", Array.Empty<AccessRuleInfo>());
         }
     }
 }

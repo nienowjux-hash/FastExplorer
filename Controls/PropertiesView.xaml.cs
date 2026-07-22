@@ -24,13 +24,13 @@ public sealed partial class PropertiesView : UserControl
 
         if (item.Kind == FileSystemItemKind.Drive)
         {
-            TypeText.Text = "Local disk";
+            TypeText.Text = "Disco local";
             AttributesPanel.Visibility = Visibility.Collapsed;
             SizeText.Text = item.SizeDisplay;
         }
         else
         {
-            TypeText.Text = item.IsDirectory ? "Folder" : DescribeFileType(item.Extension);
+            TypeText.Text = item.IsDirectory ? "Pasta" : DescribeFileType(item.Extension);
 
             var (readOnly, hidden) = PropertiesService.GetAttributes(item.FullPath);
             ReadOnlyCheck.IsChecked = readOnly;
@@ -62,11 +62,11 @@ public sealed partial class PropertiesView : UserControl
     }
 
     private static string DescribeFileType(string extension) =>
-        string.IsNullOrEmpty(extension) ? "File" : $"{extension.TrimStart('.').ToUpperInvariant()} file";
+        string.IsNullOrEmpty(extension) ? "Arquivo" : $"Arquivo {extension.TrimStart('.').ToUpperInvariant()}";
 
     private async Task CalculateSizeAsync(string path)
     {
-        SizeText.Text = "Calculating...";
+        SizeText.Text = "Calculando...";
         SizeSpinner.IsActive = true;
         CancelSizeButton.Visibility = Visibility.Visible;
         _sizeCts = new CancellationTokenSource();
@@ -78,7 +78,7 @@ public sealed partial class PropertiesView : UserControl
         }
         catch (OperationCanceledException)
         {
-            SizeText.Text = "Cancelled";
+            SizeText.Text = "Cancelado";
         }
         finally
         {

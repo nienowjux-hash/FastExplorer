@@ -17,7 +17,7 @@ public sealed class CreateItemUndoAction : UndoAction
         _isDirectory = isDirectory;
     }
 
-    public override string Description => $"Undid creating '{Path.GetFileName(_path)}'";
+    public override string Description => $"Criação de '{Path.GetFileName(_path)}' desfeita";
 
     public override void Undo()
     {
@@ -39,7 +39,7 @@ public sealed class RenameUndoAction : UndoAction
         _isDirectory = isDirectory;
     }
 
-    public override string Description => $"Undid renaming '{Path.GetFileName(_newPath)}'";
+    public override string Description => $"Renomeação de '{Path.GetFileName(_newPath)}' desfeita";
 
     public override void Undo()
     {
@@ -60,8 +60,8 @@ public sealed class MoveUndoAction : UndoAction
     }
 
     public override string Description => _moves.Count == 1
-        ? $"Undid moving '{Path.GetFileName(_moves[0].CurrentPath)}'"
-        : $"Undid moving {_moves.Count} items";
+        ? $"Movimentação de '{Path.GetFileName(_moves[0].CurrentPath)}' desfeita"
+        : $"Movimentação de {_moves.Count} itens desfeita";
 
     public override void Undo()
     {
@@ -83,8 +83,8 @@ public sealed class CopyUndoAction : UndoAction
     }
 
     public override string Description => _createdPaths.Count == 1
-        ? $"Undid copying '{Path.GetFileName(_createdPaths[0])}'"
-        : $"Undid copying {_createdPaths.Count} items";
+        ? $"Cópia de '{Path.GetFileName(_createdPaths[0])}' desfeita"
+        : $"Cópia de {_createdPaths.Count} itens desfeita";
 
     public override void Undo()
     {
@@ -106,8 +106,8 @@ public sealed class DeleteUndoAction : UndoAction
     }
 
     public override string Description => _originalPaths.Count == 1
-        ? $"Restored '{Path.GetFileName(_originalPaths[0])}'"
-        : $"Restored {_originalPaths.Count} items";
+        ? $"'{Path.GetFileName(_originalPaths[0])}' restaurado"
+        : $"{_originalPaths.Count} itens restaurados";
 
     public override void Undo()
     {

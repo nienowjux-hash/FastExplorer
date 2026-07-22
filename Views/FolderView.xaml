@@ -64,7 +64,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid PointerPressed="RootGrid_PointerPressed">
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" PointerPressed="RootGrid_PointerPressed">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -75,28 +75,28 @@
 
         <!-- Navigation bar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Padding="8,8,8,4">
-            <Button x:Name="BackButton" Click="BackButton_Click" ToolTipService.ToolTip="Back" IsEnabled="{Binding CanGoBack}">
+            <Button x:Name="BackButton" Click="BackButton_Click" ToolTipService.ToolTip="Voltar" IsEnabled="{Binding CanGoBack}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72B;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
-            <Button x:Name="ForwardButton" Click="ForwardButton_Click" ToolTipService.ToolTip="Forward" IsEnabled="{Binding CanGoForward}">
+            <Button x:Name="ForwardButton" Click="ForwardButton_Click" ToolTipService.ToolTip="Avançar" IsEnabled="{Binding CanGoForward}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
-            <Button x:Name="UpButton" Click="UpButton_Click" ToolTipService.ToolTip="Up" IsEnabled="{Binding CanGoUp}">
+            <Button x:Name="UpButton" Click="UpButton_Click" ToolTipService.ToolTip="Acima" IsEnabled="{Binding CanGoUp}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
-            <Button x:Name="RefreshButton" Click="RefreshButton_Click" ToolTipService.ToolTip="Refresh">
+            <Button x:Name="RefreshButton" Click="RefreshButton_Click" ToolTipService.ToolTip="Atualizar">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72C;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
-            <Button x:Name="ViewToggleButton" Click="ViewToggleButton_Click" ToolTipService.ToolTip="Toggle view">
+            <Button x:Name="ViewToggleButton" Click="ViewToggleButton_Click" ToolTipService.ToolTip="Alternar visualização">
                 <FontIcon x:Name="ViewToggleIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE80A;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
-            <Button x:Name="NewButton" ToolTipService.ToolTip="New"
+            <Button x:Name="NewButton" ToolTipService.ToolTip="Novo"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8F4;" FontSize="14" Foreground="{Binding AccentBrush}" />
                 <Button.Flyout>
                     <MenuFlyout>
-                        <MenuFlyoutItem Text="Folder" Click="NewFolderMenuItem_Click" />
-                        <MenuFlyoutItem Text="Text Document" Click="NewTextFileMenuItem_Click" />
+                        <MenuFlyoutItem Text="Pasta" Click="NewFolderMenuItem_Click" />
+                        <MenuFlyoutItem Text="Documento de Texto" Click="NewTextFileMenuItem_Click" />
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>
@@ -122,69 +122,96 @@
         <!-- Address bar: only meaningful inside a real folder -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Padding="8,0,8,8"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
-            <TextBox x:Name="AddressBox" Width="420" PlaceholderText="Enter a path and press Enter"
-                     Text="{Binding CurrentPath, Mode=OneWay}" KeyDown="AddressBox_KeyDown" />
+            <AutoSuggestBox x:Name="AddressBox" Width="420" PlaceholderText="Digite um caminho e pressione Enter"
+                            Text="{Binding CurrentPath, Mode=OneWay}" KeyDown="AddressBox_KeyDown"
+                            TextChanged="AddressBox_TextChanged" SuggestionChosen="AddressBox_SuggestionChosen" />
         </StackPanel>
 
         <!-- Search bar: only meaningful inside a real folder -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Padding="8,0,8,8"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
-            <TextBox x:Name="SearchBox" Width="260" PlaceholderText="Search this folder"
-                     Text="{Binding SearchQuery, Mode=TwoWay}" KeyDown="SearchBox_KeyDown" />
-            <CheckBox x:Name="ContentSearchCheck" Content="Contents"
+            <TextBox x:Name="SearchBox" Width="260" PlaceholderText="Pesquisar nesta pasta"
+                     Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="SearchBox_KeyDown" />
+            <CheckBox x:Name="ContentSearchCheck" Content="Conteúdo"
                       IsChecked="{Binding IsSearchingContent, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Search file contents instead of just names" />
+                      ToolTipService.ToolTip="Pesquisar dentro dos arquivos, não só nos nomes" />
             <ProgressRing x:Name="SearchSpinner" Width="16" Height="16" IsActive="{Binding IsBusy}" />
         </StackPanel>
 
-        <!-- File list -->
-        <ListView x:Name="FileList" Grid.Row="3"
-                  ItemsSource="{Binding Items}"
-                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                  SelectionMode="Extended"
-                  Loaded="FileList_Loaded"
-                  DoubleTapped="FileList_DoubleTapped"
-                  SelectionChanged="FileList_SelectionChanged"
-                  RightTapped="FileList_RightTapped"
-                  KeyDown="FileList_KeyDown"
-                  AllowDrop="True"
-                  DragOver="FileList_DragOver"
-                  Drop="FileList_Drop"
-                  ContainerContentChanging="FileList_ContainerContentChanging"
-                  ItemsPanel="{StaticResource ListItemsPanel}"
-                  ItemTemplate="{StaticResource ListItemTemplate}">
-            <ListView.Header>
-                <Grid x:Name="ListHeader" Padding="12,4" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="190" />
-                        <ColumnDefinition Width="160" />
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="1" Content="Name" Tag="Name" Click="SortHeader_Click"
-                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
-                    <Button Grid.Column="2" Content="Size" Tag="Size" Click="SortHeader_Click"
-                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
-                    <Button Grid.Column="3" Content="Modified" Tag="Modified" Click="SortHeader_Click"
-                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
-                </Grid>
-            </ListView.Header>
-            <ListView.ContextFlyout>
+        <!-- File list. FileListArea's Background is set in code-behind
+             (ApplyOpaqueFileListAreaBackground), not here - it must be genuinely
+             OPAQUE (alpha=255) to reliably receive pointer input, and
+             {ThemeResource ApplicationPageBackgroundThemeBrush} alone isn't
+             guaranteed to be fully opaque. Confirmed empirically: Transparent
+             (alpha=0), alpha=16/255, and the theme resource as a plain XAML
+             Background all failed to hit-test; only forcing alpha=255 in code (first
+             proven with a throwaway solid Magenta) actually works. This bit us hard:
+             an empty folder's blank list area silently ate every click, right-click,
+             and file drop, since nothing opaque was painted there. FileList itself
+             (the child, directly on top) stays genuinely Transparent - a child with
+             zero-alpha background correctly lets hit-testing fall through to this
+             parent Grid; giving FileList itself any low-but-nonzero alpha breaks
+             that fallthrough instead of fixing anything. ContextFlyout/AllowDrop/
+             DragOver/Drop live on this Grid rather than on the ListView, wired via
+             AddHandler(..., handledEventsToo: true) in FolderView's constructor
+             rather than plain XAML attributes - belt-and-suspenders against
+             ListView's own built-in gesture handling (tied to CanDragItems/item
+             selection) marking them Handled first. -->
+        <Grid x:Name="FileListArea" Grid.Row="3" AllowDrop="True">
+            <Grid.Resources>
                 <MenuFlyout x:Name="FileContextMenu" Opening="ContextFlyout_Opening" Closed="ContextFlyout_Closed">
-                    <MenuFlyoutItem Text="Open" Click="ContextOpen_Click" />
-                    <MenuFlyoutItem Text="Cut" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
-                    <MenuFlyoutItem Text="Copy" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
-                    <MenuFlyoutItem Text="Paste" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />
-                    <MenuFlyoutItem Text="Rename" Click="ContextRename_Click" KeyboardAcceleratorTextOverride="F2" />
-                    <MenuFlyoutItem Text="Delete" Click="ContextDelete_Click" KeyboardAcceleratorTextOverride="Del" />
-                    <MenuFlyoutItem x:Name="DisconnectDriveItem" Text="Disconnect network drive" Click="ContextDisconnectDrive_Click" />
+                    <MenuFlyoutItem Text="Abrir" Click="ContextOpen_Click" />
+                    <MenuFlyoutItem x:Name="OpenInNewTabItem" Text="Abrir em nova aba" Click="ContextOpenInNewTab_Click" />
+                    <MenuFlyoutItem Text="Recortar" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
+                    <MenuFlyoutItem Text="Copiar" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
+                    <MenuFlyoutItem Text="Colar" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />
+                    <MenuFlyoutSubItem Text="Novo">
+                        <MenuFlyoutItem Text="Pasta" Click="NewFolderMenuItem_Click" />
+                        <MenuFlyoutItem Text="Documento de Texto" Click="NewTextFileMenuItem_Click" />
+                    </MenuFlyoutSubItem>
+                    <MenuFlyoutItem Text="Copiar caminho" Click="ContextCopyPath_Click" />
+                    <MenuFlyoutItem Text="Renomear" Click="ContextRename_Click" KeyboardAcceleratorTextOverride="F2" />
+                    <MenuFlyoutItem Text="Excluir" Click="ContextDelete_Click" KeyboardAcceleratorTextOverride="Del" />
+                    <MenuFlyoutItem x:Name="DisconnectDriveItem" Text="Desconectar unidade de rede" Click="ContextDisconnectDrive_Click" />
                     <MenuFlyoutSeparator />
-                    <MenuFlyoutItem Text="Add to favorites" Click="ContextAddFavorite_Click" />
+                    <MenuFlyoutItem Text="Adicionar aos favoritos" Click="ContextAddFavorite_Click" />
                     <MenuFlyoutSeparator x:Name="ShellExtensionsAnchor" />
-                    <MenuFlyoutItem Text="Properties" Click="ContextProperties_Click" KeyboardAcceleratorTextOverride="Alt+Enter" />
+                    <MenuFlyoutItem Text="Propriedades" Click="ContextProperties_Click" KeyboardAcceleratorTextOverride="Alt+Enter" />
                 </MenuFlyout>
-            </ListView.ContextFlyout>
-        </ListView>
+            </Grid.Resources>
+
+            <ListView x:Name="FileList" Background="Transparent"
+                      ItemsSource="{Binding Items}"
+                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                      SelectionMode="Extended"
+                      Loaded="FileList_Loaded"
+                      DoubleTapped="FileList_DoubleTapped"
+                      SelectionChanged="FileList_SelectionChanged"
+                      RightTapped="FileList_RightTapped"
+                      KeyDown="FileList_KeyDown"
+                      CanDragItems="True"
+                      DragItemsStarting="FileList_DragItemsStarting"
+                      ContainerContentChanging="FileList_ContainerContentChanging"
+                      ItemsPanel="{StaticResource ListItemsPanel}"
+                      ItemTemplate="{StaticResource ListItemTemplate}">
+                <ListView.Header>
+                    <Grid x:Name="ListHeader" Padding="12,4" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="190" />
+                            <ColumnDefinition Width="160" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Content="Nome" Tag="Name" Click="SortHeader_Click"
+                                Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
+                        <Button Grid.Column="2" Content="Tamanho" Tag="Size" Click="SortHeader_Click"
+                                Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
+                        <Button Grid.Column="3" Content="Modificado" Tag="Modified" Click="SortHeader_Click"
+                                Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" Opacity="0.6" FontSize="12" />
+                    </Grid>
+                </ListView.Header>
+            </ListView>
+        </Grid>
 
         <!-- Status bar -->
         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" Padding="12,4">
@@ -192,7 +219,10 @@
                        Visibility="{Binding HasSelectionSummary, Converter={StaticResource BoolToVisibilityConverter}}" />
             <TextBlock x:Name="StatusBarText" Text="{Binding StatusText}" Opacity="0.6" FontSize="12" VerticalAlignment="Center"
                        Visibility="{Binding HasSelectionSummary, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
-            <Button Content="Cancel" Click="CancelOperationButton_Click" IsEnabled="{Binding IsBusy}" Padding="8,0" FontSize="12" />
+            <ProgressBar Value="{Binding TransferProgress, Mode=OneWay}" Minimum="0" Maximum="1" Width="120"
+                         VerticalAlignment="Center"
+                         Visibility="{Binding IsTransferring, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button Content="Cancelar" Click="CancelOperationButton_Click" IsEnabled="{Binding IsBusy}" Padding="8,0" FontSize="12" />
         </StackPanel>
     </Grid>
 </UserControl>

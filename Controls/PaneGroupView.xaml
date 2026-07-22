@@ -1,0 +1,63 @@
+<UserControl
+    x:Class="FastExplorer.Controls.PaneGroupView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:FastExplorer.Views"
+    xmlns:vm="using:FastExplorer.ViewModels"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <!-- TabView's own default style (DefaultTabViewStyle in the WinUI generic.xaml)
+             sets VerticalAlignment="Top" - it does NOT stretch to fill its container by
+             default, sizing instead to its natural content height. That's invisible with
+             a real folder (a ListView's natural desired height scales with item count, so
+             it's normally tall enough to fill the pane anyway) but glaring for a genuinely
+             empty one: TabView (and everything inside it, including the whole FolderView)
+             shrinks to a thin top-aligned sliver just tall enough for the tab strip + the
+             file list's header, and everything visually "below" it is actually outside
+             FolderView's own bounds entirely - just this RootGrid's own same-colored
+             background showing through behind it, not part of any interactive element.
+             This is what silently ate every click/right-click/drop on an empty folder's
+             blank area, and explicit VerticalAlignment="Stretch" here is the actual fix -
+             confirmed by isolating each layer with a throwaway solid-color Background one
+             at a time (this RootGrid already filled correctly; TabView was the one that didn't). -->
+        <TabView x:Name="PaneTabView" VerticalAlignment="Stretch"
+                 CanDragTabs="True" CanReorderTabs="True"
+                 TabItemsSource="{Binding Tabs}"
+                 SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                 AddTabButtonClick="PaneTabView_AddTabButtonClick"
+                 TabCloseRequested="PaneTabView_TabCloseRequested"
+                 TabDragStarting="PaneTabView_TabDragStarting"
+                 TabStripDrop="PaneTabView_TabStripDrop"
+                 TabDroppedOutside="PaneTabView_TabDroppedOutside">
+            <TabView.TabItemTemplate>
+                <DataTemplate x:DataType="vm:TabViewModel">
+                    <!-- TabViewItem/FolderView's own Stretch alignments are redundant
+                         once TabView itself stretches (above), but harmless to keep as
+                         a defensive belt-and-suspenders now that the actual cause is fixed. -->
+                    <TabViewItem Header="{x:Bind Header, Mode=OneWay}" IsClosable="True"
+                                 HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                        <TabViewItem.IconSource>
+                            <FontIconSource FontFamily="Segoe Fluent Icons" Glyph="&#xE8B7;" />
+                        </TabViewItem.IconSource>
+                        <TabViewItem.Content>
+                            <views:FolderView HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                        </TabViewItem.Content>
+                    </TabViewItem>
+                </DataTemplate>
+            </TabView.TabItemTemplate>
+        </TabView>
+
+        <!-- Drop-zone overlay: invisible and non-hit-testable except during an
+             active cross-pane tab drag (toggled via TabDragState), so it never
+             interferes with ordinary clicks/scrolling into the file list below.
+             Covers the whole pane (not just the tab strip) so dropping on an
+             edge here is what triggers a split. -->
+        <Grid x:Name="DragOverlay" Background="Transparent" Visibility="Collapsed"
+              AllowDrop="True" DragOver="DragOverlay_DragOver" DragLeave="DragOverlay_DragLeave" Drop="DragOverlay_Drop">
+            <Border x:Name="ZoneHighlight" Visibility="Collapsed" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.35" />
+        </Grid>
+    </Grid>
+</UserControl>

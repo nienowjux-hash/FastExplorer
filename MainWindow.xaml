@@ -5,8 +5,6 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:FastExplorer.Controls"
-    xmlns:views="using:FastExplorer.Views"
-    xmlns:vm="using:FastExplorer.ViewModels"
     xmlns:services="using:FastExplorer.Services"
     xmlns:models="using:FastExplorer.Models"
     xmlns:converters="using:FastExplorer.Converters"
@@ -15,6 +13,7 @@
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
             <converters:AccentColorToBrushConverter x:Key="AccentColorToBrushConverter" />
+            <converters:EnumDisplayNameConverter x:Key="EnumDisplayNameConverter" />
         </Grid.Resources>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="T" Modifiers="Control" Invoked="NewTabAccelerator_Invoked" />
@@ -40,7 +39,7 @@
 
             <ScrollViewer Grid.Row="1">
                 <StackPanel Padding="8,0,8,8" Spacing="4">
-                    <TextBlock Text="Favorites" Opacity="0.6" FontSize="12" Padding="8,8,8,4" />
+                    <TextBlock Text="Favoritos" Opacity="0.6" FontSize="12" Padding="8,8,8,4" />
                     <ListView x:Name="FavoritesList" ItemsSource="{Binding Favorites}"
                               SelectionMode="None" ItemClick="FavoritesList_ItemClick" IsItemClickEnabled="True">
                         <ListView.ItemTemplate>
@@ -58,54 +57,47 @@
                         </ListView.ItemTemplate>
                     </ListView>
 
-                    <TextBlock Text="This PC" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
-                    <Button Content="Drives and devices" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                    <TextBlock Text="Este Computador" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
+                    <Button Content="Unidades e dispositivos" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Background="Transparent" BorderThickness="0" Click="ThisPcButton_Click" />
-                    <Button Content="Map network drive..." HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                    <Button Content="Mapear unidade de rede..." HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Background="Transparent" BorderThickness="0" Click="MapNetworkDriveButton_Click" />
 
-                    <TextBlock Text="Theme" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
+                    <TextBlock Text="Tema" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
                     <ComboBox ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
-                              HorizontalAlignment="Stretch" Margin="8,0,8,0" />
+                              HorizontalAlignment="Stretch" Margin="8,0,8,0">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumDisplayNameConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
-                    <TextBlock Text="Accent color" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
+                    <TextBlock Text="Cor de destaque" Opacity="0.6" FontSize="12" Padding="8,12,8,4" />
                     <ComboBox ItemsSource="{Binding AvailableAccentColors}" SelectedItem="{Binding SelectedAccentColor, Mode=TwoWay}"
                               HorizontalAlignment="Stretch" Margin="8,0,8,0">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Ellipse Width="14" Height="14" Fill="{Binding Converter={StaticResource AccentColorToBrushConverter}}" />
-                                    <TextBlock Text="{Binding}" />
+                                    <TextBlock Text="{Binding Converter={StaticResource EnumDisplayNameConverter}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <CheckBox Content="Show hidden files" IsChecked="{Binding ShowHiddenFiles, Mode=TwoWay}"
+                    <CheckBox Content="Mostrar arquivos ocultos" IsChecked="{Binding ShowHiddenFiles, Mode=TwoWay}"
                               Margin="8,12,8,0" />
                 </StackPanel>
             </ScrollViewer>
         </Grid>
 
-        <!-- Tabs -->
-        <TabView x:Name="MainTabView" Grid.Column="1"
-                 TabItemsSource="{Binding Tabs}"
-                 SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
-                 AddTabButtonClick="MainTabView_AddTabButtonClick"
-                 TabCloseRequested="MainTabView_TabCloseRequested">
-            <TabView.TabItemTemplate>
-                <DataTemplate x:DataType="vm:TabViewModel">
-                    <TabViewItem Header="{x:Bind Header, Mode=OneWay}" IsClosable="True">
-                        <TabViewItem.IconSource>
-                            <FontIconSource FontFamily="Segoe Fluent Icons" Glyph="&#xE8B7;" />
-                        </TabViewItem.IconSource>
-                        <TabViewItem.Content>
-                            <views:FolderView />
-                        </TabViewItem.Content>
-                    </TabViewItem>
-                </DataTemplate>
-            </TabView.TabItemTemplate>
-        </TabView>
+        <!-- Split-pane tree: a leaf renders as a tab strip (PaneGroupView), a split
+             renders as two of these side by side / stacked (SplitContainerView),
+             recursively - see the PaneNodeTemplateSelector in App.xaml. -->
+        <ContentControl Grid.Column="1" Content="{Binding RootPane}"
+                        ContentTemplateSelector="{StaticResource PaneNodeTemplateSelector}"
+                        HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
 
         <!-- Preview pane -->
         <Grid Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">

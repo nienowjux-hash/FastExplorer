@@ -13,7 +13,7 @@
         </Grid.RowDefinitions>
 
         <Grid x:Name="EmptyState" Visibility="Visible" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock Text="Select a file to preview" Opacity="0.6" />
+            <TextBlock Text="Selecione um arquivo para visualizar" Opacity="0.6" />
         </Grid>
 
         <Image x:Name="ImagePreview" Visibility="Collapsed" Stretch="Uniform" VerticalAlignment="Top" />

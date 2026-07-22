@@ -1,12 +1,29 @@
 <Application
     x:Class="FastExplorer.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:FastExplorer.Controls"
+    xmlns:converters="using:FastExplorer.Converters">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Renders the recursive split-pane tree: a SplitPaneNode becomes a
+                 SplitContainerView (hosting two more panes + a GridSplitter), a
+                 leaf PaneViewModel becomes a PaneGroupView (an actual tab strip).
+                 Global (not per-window) so SplitContainerView's own nested
+                 ContentControls can resolve it too when rendering their children. -->
+            <DataTemplate x:Key="SplitPaneNodeTemplate">
+                <controls:SplitContainerView />
+            </DataTemplate>
+            <DataTemplate x:Key="PaneViewModelTemplate">
+                <controls:PaneGroupView />
+            </DataTemplate>
+            <converters:PaneNodeTemplateSelector x:Key="PaneNodeTemplateSelector"
+                SplitTemplate="{StaticResource SplitPaneNodeTemplate}"
+                PaneTemplate="{StaticResource PaneViewModelTemplate}" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

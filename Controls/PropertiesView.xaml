@@ -28,40 +28,40 @@
                     <RowDefinition />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type" Opacity="0.6" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Tipo" Opacity="0.6" />
                 <TextBlock x:Name="TypeText" Grid.Row="0" Grid.Column="1" TextTrimming="CharacterEllipsis" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Location" Opacity="0.6" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Local" Opacity="0.6" />
                 <TextBlock x:Name="LocationText" Grid.Row="1" Grid.Column="1" TextTrimming="CharacterEllipsis" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Size" Opacity="0.6" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Tamanho" Opacity="0.6" />
                 <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <TextBlock x:Name="SizeText" TextTrimming="CharacterEllipsis" />
                     <ProgressRing x:Name="SizeSpinner" Width="14" Height="14" IsActive="False" />
-                    <HyperlinkButton x:Name="CancelSizeButton" Content="Cancel" Click="CancelSizeButton_Click" Visibility="Collapsed" Padding="0" />
+                    <HyperlinkButton x:Name="CancelSizeButton" Content="Cancelar" Click="CancelSizeButton_Click" Visibility="Collapsed" Padding="0" />
                 </StackPanel>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Created" Opacity="0.6" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Criado" Opacity="0.6" />
                 <TextBlock x:Name="CreatedText" Grid.Row="3" Grid.Column="1" />
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="Modified" Opacity="0.6" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Modificado" Opacity="0.6" />
                 <TextBlock x:Name="ModifiedText" Grid.Row="4" Grid.Column="1" />
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="Accessed" Opacity="0.6" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Acessado" Opacity="0.6" />
                 <TextBlock x:Name="AccessedText" Grid.Row="5" Grid.Column="1" />
             </Grid>
 
             <StackPanel x:Name="AttributesPanel" Orientation="Horizontal" Spacing="16">
-                <CheckBox x:Name="ReadOnlyCheck" Content="Read-only" />
-                <CheckBox x:Name="HiddenCheck" Content="Hidden" />
+                <CheckBox x:Name="ReadOnlyCheck" Content="Somente leitura" />
+                <CheckBox x:Name="HiddenCheck" Content="Oculto" />
             </StackPanel>
 
             <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
-            <TextBlock Text="Security" FontWeight="SemiBold" />
+            <TextBlock Text="Segurança" FontWeight="SemiBold" />
 
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="Owner" Opacity="0.6" Width="90" />
+                <TextBlock Text="Proprietário" Opacity="0.6" Width="90" />
                 <TextBlock x:Name="OwnerText" TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
@@ -74,9 +74,9 @@
                                 <ColumnDefinition Width="60" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Account" Opacity="0.6" FontSize="12" />
-                            <TextBlock Grid.Column="1" Text="Type" Opacity="0.6" FontSize="12" />
-                            <TextBlock Grid.Column="2" Text="Permissions" Opacity="0.6" FontSize="12" />
+                            <TextBlock Grid.Column="0" Text="Conta" Opacity="0.6" FontSize="12" />
+                            <TextBlock Grid.Column="1" Text="Tipo" Opacity="0.6" FontSize="12" />
+                            <TextBlock Grid.Column="2" Text="Permissões" Opacity="0.6" FontSize="12" />
                         </Grid>
                     </DataTemplate>
                 </ListView.HeaderTemplate>

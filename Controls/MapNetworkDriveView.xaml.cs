@@ -28,12 +28,12 @@ public sealed partial class MapNetworkDriveView : UserControl
 
         if (string.IsNullOrEmpty(driveLetter))
         {
-            ShowError("No drive letters available.");
+            ShowError("Nenhuma letra de unidade disponível.");
             return false;
         }
         if (string.IsNullOrEmpty(path))
         {
-            ShowError("Enter a network path, e.g. \\\\server\\share.");
+            ShowError("Digite um caminho de rede, ex: \\\\servidor\\pasta.");
             return false;
         }
 

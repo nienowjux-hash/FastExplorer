@@ -23,13 +23,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _operationCts;
     private FileSystemWatcher? _watcher;
     private Timer? _refreshDebounceTimer;
+    private Timer? _searchDebounceTimer;
     private bool _showHiddenFiles;
 
     [ObservableProperty]
     private string currentPath = string.Empty;
 
     [ObservableProperty]
-    private string header = "This PC";
+    private string header = "Este Computador";
 
     [ObservableProperty]
     private FileSystemItem? selectedItem;
@@ -45,6 +46,15 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool isBusy;
+
+    // Distinct from IsBusy (which also covers search): only true while a
+    // TransferAsync/DeleteSelectedAsync bulk operation is running, so the status
+    // bar's determinate ProgressBar doesn't show a stuck-at-zero bar during search.
+    [ObservableProperty]
+    private bool isTransferring;
+
+    [ObservableProperty]
+    private double transferProgress;
 
     [ObservableProperty]
     private SortField sortField = SortField.Name;
@@ -112,17 +122,17 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
         var totalBytes = SelectedItems.Where(i => !i.IsDirectory).Sum(i => i.SizeBytes);
         SelectionSummary = totalBytes > 0
-            ? $"{SelectedItems.Count} items selected, {FileSystemItem.FormatSize(totalBytes)}"
-            : $"{SelectedItems.Count} items selected";
+            ? $"{SelectedItems.Count} itens selecionados, {FileSystemItem.FormatSize(totalBytes)}"
+            : $"{SelectedItems.Count} itens selecionados";
     }
 
     public void NavigateHome()
     {
         CurrentPath = string.Empty;
-        Header = "This PC";
+        Header = "Este Computador";
         Items.Clear();
         Breadcrumbs.Clear();
-        Breadcrumbs.Add("This PC");
+        Breadcrumbs.Add("Este Computador");
         _ = LoadDrivesAsync();
     }
 
@@ -132,7 +142,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     private async Task LoadDrivesAsync()
     {
         IsBusy = true;
-        StatusText = "Loading drives...";
+        StatusText = "Carregando unidades...";
 
         void OnDriveReady(FileSystemItem drive)
         {
@@ -140,7 +150,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
             {
                 if (!string.IsNullOrEmpty(CurrentPath)) return; // navigated away meanwhile
                 Items.Add(drive);
-                StatusText = $"{Items.Count} drive{(Items.Count == 1 ? string.Empty : "s")}";
+                StatusText = $"{Items.Count} unidade{(Items.Count == 1 ? string.Empty : "s")}";
             });
         }
 
@@ -163,7 +173,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         else if (recordHistory && string.IsNullOrEmpty(CurrentPath))
         {
-            _backStack.Add(string.Empty); // came from "This PC"
+            _backStack.Add(string.Empty); // came from "Este Computador"
             _forwardStack.Clear();
         }
 
@@ -175,27 +185,91 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
     private void LoadFolder(string path)
     {
+        // Reconciling (vs. a plain Clear()+re-Add) only pays off when refreshing the
+        // *same* folder - most items are unchanged, so the diff is small and there's
+        // no flicker or lost selection. Navigating to a genuinely different folder
+        // means practically everything is "new" anyway, so reconciling there just
+        // makes WinUI play a remove+insert transition per item instead of one bulk
+        // reset - slower and jankier than the plain Clear()+Add() it replaced.
+        var isSameFolder = string.Equals(CurrentPath, path, StringComparison.OrdinalIgnoreCase);
+
         CurrentPath = path;
         Header = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
         if (string.IsNullOrEmpty(Header)) Header = path;
 
-        Items.Clear();
         try
         {
-            var entries = OrderItems(FileSystemService.EnumerateDirectory(path, _showHiddenFiles));
-            foreach (var entry in entries)
+            var entries = OrderItems(FileSystemService.EnumerateDirectory(path, _showHiddenFiles)).ToList();
+            if (isSameFolder)
             {
-                Items.Add(entry);
+                ReconcileItems(entries);
             }
-            StatusText = $"{Items.Count} items";
+            else
+            {
+                Items.Clear();
+                foreach (var entry in entries) Items.Add(entry);
+            }
+            StatusText = $"{Items.Count} {(Items.Count == 1 ? "item" : "itens")}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = "Access denied";
+            Items.Clear();
+            StatusText = "Acesso negado";
         }
 
         RebuildBreadcrumbs(path);
         UpdateCutMarkers();
+    }
+
+    // Updates Items to match `freshItems` via Insert/Remove/Move/targeted Replace
+    // instead of Clear()-then-re-Add-everything - the previous approach blanked the
+    // whole ListView for a frame on every refresh (every paste/copy/delete, and every
+    // debounced FileSystemWatcher tick), even when only one file actually changed,
+    // and silently dropped the current selection since Clear() invalidates every
+    // bound SelectedItem/SelectedItems reference. Items that are unaffected keep
+    // their exact object instance (preserving already-loaded Thumbnail/IsCut and
+    // selection); only genuinely new/removed/changed paths touch the collection.
+    private void ReconcileItems(List<FileSystemItem> freshItems)
+    {
+        var freshPaths = freshItems.Select(i => i.FullPath).ToHashSet();
+        for (var i = Items.Count - 1; i >= 0; i--)
+        {
+            if (!freshPaths.Contains(Items[i].FullPath))
+            {
+                Items.RemoveAt(i);
+            }
+        }
+
+        for (var i = 0; i < freshItems.Count; i++)
+        {
+            var fresh = freshItems[i];
+            var existingIndex = -1;
+            for (var j = i; j < Items.Count; j++)
+            {
+                if (Items[j].FullPath == fresh.FullPath)
+                {
+                    existingIndex = j;
+                    break;
+                }
+            }
+
+            if (existingIndex < 0)
+            {
+                Items.Insert(i, fresh);
+                continue;
+            }
+
+            if (existingIndex != i) Items.Move(existingIndex, i);
+
+            var existing = Items[i];
+            if (existing.SizeBytes != fresh.SizeBytes || existing.DateModified != fresh.DateModified
+                || existing.Kind != fresh.Kind || existing.IsCloudPlaceholder != fresh.IsCloudPlaceholder
+                || existing.IsCloudPinned != fresh.IsCloudPinned)
+            {
+                fresh.IsCut = existing.IsCut;
+                Items[i] = fresh;
+            }
+        }
     }
 
     // Mirrors Explorer's dimmed look for items marked with Ctrl+X. Cheap - just a
@@ -281,6 +355,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         SelectedItems.CollectionChanged -= OnSelectedItemsChanged;
         _watcher?.Dispose();
         _refreshDebounceTimer?.Dispose();
+        _searchDebounceTimer?.Dispose();
         _searchCts?.Cancel();
         _operationCts?.Cancel();
     }
@@ -368,6 +443,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnSearchQueryChanged(string value)
+    {
+        // Debounce so a full-subtree filesystem walk doesn't restart on every keystroke.
+        _searchDebounceTimer?.Dispose();
+        _searchDebounceTimer = new Timer(
+            _ => App.EnqueueOnUiThread(() => _ = RunSearchAsync()), null, dueTime: 300, period: Timeout.Infinite);
+    }
+
     public async Task RunSearchAsync()
     {
         _searchCts?.Cancel();
@@ -382,7 +465,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         var token = _searchCts.Token;
         IsBusy = true;
         Items.Clear();
-        StatusText = "Searching...";
+        StatusText = "Pesquisando...";
 
         var dispatcherItems = new List<FileSystemItem>();
         void OnResult(FileSystemItem item)
@@ -391,7 +474,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
             {
                 if (token.IsCancellationRequested) return;
                 Items.Add(item);
-                StatusText = $"{Items.Count} matches";
+                StatusText = $"{Items.Count} {(Items.Count == 1 ? "resultado" : "resultados")}";
             });
         }
 
@@ -401,14 +484,18 @@ public partial class TabViewModel : ObservableObject, IDisposable
                 await SearchService.SearchByContentAsync(CurrentPath, SearchQuery, OnResult, token);
             else
                 await SearchService.SearchByNameAsync(CurrentPath, SearchQuery, OnResult, token);
+
+            if (!token.IsCancellationRequested) StatusText = $"{Items.Count} {(Items.Count == 1 ? "resultado" : "resultados")}";
         }
         catch (OperationCanceledException)
         {
-            // superseded by a newer search
+            if (token == _searchCts?.Token) StatusText = "Pesquisa cancelada";
         }
         finally
         {
-            if (!token.IsCancellationRequested) IsBusy = false;
+            // Only the still-current search may clear IsBusy - an older search
+            // superseded by a newer one (different token) must not stomp on it.
+            if (token == _searchCts?.Token) IsBusy = false;
         }
     }
 
@@ -446,7 +533,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(CurrentPath)) return;
 
-        var name = "New folder";
+        var name = "Nova pasta";
         var candidate = name;
         int i = 2;
         while (Directory.Exists(Path.Combine(CurrentPath, candidate)))
@@ -463,7 +550,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"Couldn't create folder: {ex.Message}";
+            StatusText = $"Não foi possível criar a pasta: {ex.Message}";
         }
     }
 
@@ -472,7 +559,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(CurrentPath)) return;
 
-        const string name = "New Text Document";
+        const string name = "Novo Documento de Texto";
         const string ext = ".txt";
         var candidate = name + ext;
         var i = 2;
@@ -490,7 +577,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"Couldn't create file: {ex.Message}";
+            StatusText = $"Não foi possível criar o arquivo: {ex.Message}";
         }
     }
 
@@ -508,10 +595,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (targets.Count == 0) return;
 
         IsBusy = true;
+        IsTransferring = true;
+        TransferProgress = 0;
         _operationCts = new CancellationTokenSource();
         var token = _operationCts.Token;
         var failures = new List<string>();
         var deletedPaths = new List<string>();
+        var total = targets.Count;
+        var completed = 0;
         try
         {
             await Task.Run(() =>
@@ -528,18 +619,27 @@ public partial class TabViewModel : ObservableObject, IDisposable
                     {
                         failures.Add(item.Name);
                     }
+
+                    completed++;
+                    var progress = (double)completed / total;
+                    App.EnqueueOnUiThread(() =>
+                    {
+                        TransferProgress = progress;
+                        StatusText = $"Excluindo {completed} de {total}...";
+                    });
                 }
             }, token);
         }
         catch (OperationCanceledException)
         {
             Refresh();
-            StatusText = "Delete cancelled";
+            StatusText = "Exclusão cancelada";
             return;
         }
         finally
         {
             IsBusy = false;
+            IsTransferring = false;
             _operationCts = null;
         }
 
@@ -550,7 +650,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         if (failures.Count > 0)
         {
-            StatusText = $"Couldn't delete: {string.Join(", ", failures)}";
+            StatusText = $"Não foi possível excluir: {string.Join(", ", failures)}";
         }
     }
 
@@ -567,7 +667,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"Couldn't rename '{item.Name}': {ex.Message}";
+            StatusText = $"Não foi possível renomear '{item.Name}': {ex.Message}";
         }
     }
 
@@ -578,7 +678,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (targets.Count == 0) return;
         s_clipboard = targets.Select(t => t.FullPath).ToList();
         s_clipboardIsCut = false;
-        StatusText = targets.Count == 1 ? $"Copied '{targets[0].Name}'" : $"Copied {targets.Count} items";
+        StatusText = targets.Count == 1 ? $"Copiado '{targets[0].Name}'" : $"Copiados {targets.Count} itens";
         WeakReferenceMessenger.Default.Send(new ClipboardChangedMessage());
     }
 
@@ -589,7 +689,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         if (targets.Count == 0) return;
         s_clipboard = targets.Select(t => t.FullPath).ToList();
         s_clipboardIsCut = true;
-        StatusText = targets.Count == 1 ? $"Cut '{targets[0].Name}'" : $"Cut {targets.Count} items";
+        StatusText = targets.Count == 1 ? $"Recortado '{targets[0].Name}'" : $"Recortados {targets.Count} itens";
         WeakReferenceMessenger.Default.Send(new ClipboardChangedMessage());
     }
 
@@ -641,13 +741,13 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         if (outcome.Failures.Count > 0)
         {
-            StatusText = $"Couldn't paste: {string.Join(", ", outcome.Failures)}";
+            StatusText = $"Não foi possível colar: {string.Join(", ", outcome.Failures)}";
         }
         else
         {
             StatusText = outcome.Succeeded.Count == 1
-                ? $"Pasted '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
-                : $"Pasted {outcome.Succeeded.Count} items";
+                ? $"Colado '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
+                : $"Colados {outcome.Succeeded.Count} itens";
         }
     }
 
@@ -666,13 +766,13 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         if (outcome.Failures.Count > 0)
         {
-            StatusText = $"Couldn't copy: {string.Join(", ", outcome.Failures)}";
+            StatusText = $"Não foi possível copiar: {string.Join(", ", outcome.Failures)}";
         }
         else
         {
             StatusText = outcome.Succeeded.Count == 1
-                ? $"Copied '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
-                : $"Copied {outcome.Succeeded.Count} items";
+                ? $"Copiado '{Path.GetFileName(outcome.Succeeded[0].DestPath)}'"
+                : $"Copiados {outcome.Succeeded.Count} itens";
         }
     }
 
@@ -687,9 +787,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
         IReadOnlyList<string> sourcePaths, string destination, bool isCut, ConflictResolution resolution)
     {
         IsBusy = true;
+        IsTransferring = true;
+        TransferProgress = 0;
         _operationCts = new CancellationTokenSource();
         var token = _operationCts.Token;
         var outcome = new TransferOutcome();
+        var total = sourcePaths.Count;
+        var completed = 0;
+        var verb = isCut ? "Movendo" : "Copiando";
         try
         {
             await Task.Run(() =>
@@ -726,18 +831,27 @@ public partial class TabViewModel : ObservableObject, IDisposable
                     {
                         outcome.Failures.Add(Path.GetFileName(sourcePath));
                     }
+
+                    completed++;
+                    var progress = (double)completed / total;
+                    App.EnqueueOnUiThread(() =>
+                    {
+                        TransferProgress = progress;
+                        StatusText = $"{verb} {completed} de {total}...";
+                    });
                 }
             }, token);
         }
         catch (OperationCanceledException)
         {
             Refresh();
-            StatusText = "Operation cancelled";
+            StatusText = "Operação cancelada";
             return null;
         }
         finally
         {
             IsBusy = false;
+            IsTransferring = false;
             _operationCts = null;
         }
 
@@ -749,7 +863,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     {
         if (!UndoService.CanUndo)
         {
-            StatusText = "Nothing to undo";
+            StatusText = "Nada para desfazer";
             return;
         }
 
@@ -761,7 +875,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"Couldn't undo: {ex.Message}";
+            StatusText = $"Não foi possível desfazer: {ex.Message}";
             return;
         }
         finally
@@ -770,6 +884,6 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
 
         Refresh();
-        StatusText = description ?? "Undone";
+        StatusText = description ?? "Desfeito";
     }
 }

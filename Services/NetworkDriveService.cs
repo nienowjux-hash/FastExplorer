@@ -59,8 +59,8 @@ public static class NetworkDriveService
         if (result != NO_ERROR)
         {
             var message = result == ERROR_ALREADY_ASSIGNED
-                ? $"Drive {driveLetter} is already in use."
-                : $"Couldn't map {driveLetter} to {remotePath} (Win32 error {result}).";
+                ? $"A unidade {driveLetter} já está em uso."
+                : $"Não foi possível mapear {driveLetter} para {remotePath} (erro Win32 {result}).";
             throw new IOException(message);
         }
     }
@@ -70,7 +70,7 @@ public static class NetworkDriveService
         var result = WNetCancelConnection2(driveLetter, 0, true);
         if (result != NO_ERROR)
         {
-            throw new IOException($"Couldn't disconnect {driveLetter} (Win32 error {result}).");
+            throw new IOException($"Não foi possível desconectar {driveLetter} (erro Win32 {result}).");
         }
     }
 }

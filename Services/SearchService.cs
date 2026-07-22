@@ -8,22 +8,19 @@ public static class SearchService
     // Recursively searches by file/folder name (substring, case-insensitive).
     // Streams results back via the callback so the UI can render matches as they
     // arrive instead of waiting for the whole tree to be walked.
-    public static async Task SearchByNameAsync(
+    public static Task SearchByNameAsync(
         string rootPath,
         string query,
         Action<FileSystemItem> onResult,
         CancellationToken cancellationToken)
     {
-        await Task.Run(() =>
+        return Task.Run(() =>
         {
-            foreach (var item in WalkDirectory(rootPath, cancellationToken))
+            WalkDirectoryParallel(rootPath, cancellationToken, item =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 if (item.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
-                {
                     onResult(item);
-                }
-            }
+            });
         }, cancellationToken);
     }
 
@@ -38,65 +35,87 @@ public static class SearchService
 
     private const long MaxContentSearchBytes = 10 * 1024 * 1024; // 10 MB
 
-    public static async Task SearchByContentAsync(
+    public static Task SearchByContentAsync(
         string rootPath,
         string query,
         Action<FileSystemItem> onResult,
         CancellationToken cancellationToken)
     {
-        await Task.Run(async () =>
+        return Task.Run(() =>
         {
-            foreach (var item in WalkDirectory(rootPath, cancellationToken))
+            WalkDirectoryParallel(rootPath, cancellationToken, item =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (item.IsDirectory) continue;
-                if (!TextExtensions.Contains(item.Extension)) continue;
-                if (item.SizeBytes > MaxContentSearchBytes) continue;
+                if (item.IsDirectory) return;
+                if (!TextExtensions.Contains(item.Extension)) return;
+                if (item.SizeBytes > MaxContentSearchBytes) return;
 
                 try
                 {
-                    var text = await File.ReadAllTextAsync(item.FullPath, Encoding.UTF8, cancellationToken);
+                    var text = File.ReadAllText(item.FullPath, Encoding.UTF8);
                     if (text.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    {
                         onResult(item);
-                    }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // Skip files that are locked, deleted mid-walk, or inaccessible.
                 }
-            }
+            });
         }, cancellationToken);
     }
 
-    private static IEnumerable<FileSystemItem> WalkDirectory(string rootPath, CancellationToken cancellationToken)
+    // Fans subdirectories out across the thread pool instead of walking one directory
+    // at a time - directory enumeration is I/O-bound, so overlapping many of them cuts
+    // wall-clock time substantially on a whole-drive search. It also keeps cancellation
+    // responsive: a single huge folder (e.g. WinSxS) blocking one worker no longer stalls
+    // every other branch of the tree, and each branch checks the token independently.
+    private static void WalkDirectoryParallel(string rootPath, CancellationToken cancellationToken, Action<FileSystemItem> onItem)
     {
-        var pending = new Stack<string>();
-        pending.Push(rootPath);
-
-        while (pending.Count > 0)
+        void Walk(string dir)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var current = pending.Pop();
 
-            IEnumerable<FileSystemItem> children;
+            List<FileSystemItem> children;
             try
             {
-                children = FileSystemService.EnumerateDirectory(current).ToList();
+                children = FileSystemService.EnumerateDirectory(dir).ToList();
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
-                continue;
+                return;
             }
 
+            var subdirs = new List<string>();
             foreach (var child in children)
             {
-                yield return child;
-                if (child.IsDirectory)
-                {
-                    pending.Push(child.FullPath);
-                }
+                cancellationToken.ThrowIfCancellationRequested();
+                onItem(child);
+                if (child.IsDirectory) subdirs.Add(child.FullPath);
+            }
+
+            if (subdirs.Count == 0) return;
+
+            var options = new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+            };
+            try
+            {
+                Parallel.ForEach(subdirs, options, Walk);
+            }
+            catch (Exception ex) when (IsCancellation(ex, cancellationToken))
+            {
+                throw new OperationCanceledException(cancellationToken);
             }
         }
+
+        Walk(rootPath);
+    }
+
+    private static bool IsCancellation(Exception ex, CancellationToken token)
+    {
+        if (ex is OperationCanceledException oce) return oce.CancellationToken == token || token.IsCancellationRequested;
+        if (ex is AggregateException agg) return agg.Flatten().InnerExceptions.All(e => IsCancellation(e, token));
+        return false;
     }
 }

@@ -79,7 +79,7 @@ internal static class RecycleBinHelper
             fileOperation.GetAnyOperationsAborted(out var aborted);
             if (aborted != 0)
             {
-                throw new IOException($"Recycle Bin operation for '{fullPath}' was aborted.");
+                throw new IOException($"A operação da Lixeira para '{fullPath}' foi abortada.");
             }
         }
         finally

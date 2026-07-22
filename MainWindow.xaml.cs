@@ -34,6 +34,8 @@ public sealed partial class MainWindow : Window
             this, (recipient, message) => recipient.ApplyTheme(message.Theme));
         WeakReferenceMessenger.Default.Register<MainWindow, AccentColorChangedMessage>(
             this, (recipient, message) => recipient.ApplyAccentColor(message.AccentColor));
+        WeakReferenceMessenger.Default.Register<MainWindow, OpenInNewTabRequestedMessage>(
+            this, (recipient, message) => recipient.ViewModel.NewTab(recipient.ViewModel.ActivePane, message.Path));
 
         Closed += (_, _) =>
         {
@@ -86,19 +88,6 @@ public sealed partial class MainWindow : Window
         appWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
     }
 
-    private void MainTabView_AddTabButtonClick(TabView sender, object args)
-    {
-        ViewModel.NewTabCommand.Execute(null);
-    }
-
-    private void MainTabView_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
-    {
-        if (args.Item is TabViewModel tab)
-        {
-            ViewModel.CloseTabCommand.Execute(tab);
-        }
-    }
-
     private void FavoritesList_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is FavoriteEntry favorite)
@@ -109,7 +98,7 @@ public sealed partial class MainWindow : Window
 
     private void ThisPcButton_Click(object sender, RoutedEventArgs e)
     {
-        ViewModel.SelectedTab?.NavigateHome();
+        ViewModel.ActivePane.SelectedTab?.NavigateHome();
     }
 
     private async void MapNetworkDriveButton_Click(object sender, RoutedEventArgs e)
@@ -117,10 +106,10 @@ public sealed partial class MainWindow : Window
         var view = new MapNetworkDriveView();
         var dialog = new ContentDialog
         {
-            Title = "Map network drive",
+            Title = "Mapear unidade de rede",
             Content = view,
-            PrimaryButtonText = "Map",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = "Mapear",
+            CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = RootGrid.XamlRoot,
         };
@@ -132,19 +121,19 @@ public sealed partial class MainWindow : Window
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {
-            ViewModel.SelectedTab?.RefreshCommand.Execute(null);
+            ViewModel.ActivePane.SelectedTab?.RefreshCommand.Execute(null);
         }
     }
 
     private void NewTabAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        ViewModel.NewTabCommand.Execute(null);
+        ViewModel.NewTab(ViewModel.ActivePane);
         args.Handled = true;
     }
 
     private void CloseTabAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        ViewModel.CloseTabCommand.Execute(null);
+        ViewModel.CloseTab(ViewModel.ActivePane, null);
         args.Handled = true;
     }
 
@@ -162,9 +151,10 @@ public sealed partial class MainWindow : Window
 
     private void CycleTab(int direction)
     {
-        if (ViewModel.Tabs.Count == 0) return;
-        var index = ViewModel.SelectedTab is null ? 0 : ViewModel.Tabs.IndexOf(ViewModel.SelectedTab);
-        index = (index + direction + ViewModel.Tabs.Count) % ViewModel.Tabs.Count;
-        ViewModel.SelectedTab = ViewModel.Tabs[index];
+        var pane = ViewModel.ActivePane;
+        if (pane.Tabs.Count == 0) return;
+        var index = pane.SelectedTab is null ? 0 : pane.Tabs.IndexOf(pane.SelectedTab);
+        index = (index + direction + pane.Tabs.Count) % pane.Tabs.Count;
+        pane.SelectedTab = pane.Tabs[index];
     }
 }

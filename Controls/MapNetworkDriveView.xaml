@@ -8,26 +8,26 @@
 
     <StackPanel Spacing="12" Width="360">
         <StackPanel Spacing="4">
-            <TextBlock Text="Drive letter" Opacity="0.6" FontSize="12" />
+            <TextBlock Text="Letra da unidade" Opacity="0.6" FontSize="12" />
             <ComboBox x:Name="DriveLetterCombo" HorizontalAlignment="Stretch" />
         </StackPanel>
 
         <StackPanel Spacing="4">
-            <TextBlock Text="Folder" Opacity="0.6" FontSize="12" />
-            <TextBox x:Name="PathBox" PlaceholderText="\\server\share" />
+            <TextBlock Text="Pasta" Opacity="0.6" FontSize="12" />
+            <TextBox x:Name="PathBox" PlaceholderText="\\servidor\pasta" />
         </StackPanel>
 
         <StackPanel Spacing="4">
-            <TextBlock Text="Username (optional)" Opacity="0.6" FontSize="12" />
-            <TextBox x:Name="UsernameBox" PlaceholderText="Leave blank to use current sign-in" />
+            <TextBlock Text="Usuário (opcional)" Opacity="0.6" FontSize="12" />
+            <TextBox x:Name="UsernameBox" PlaceholderText="Deixe em branco para usar o usuário atual" />
         </StackPanel>
 
         <StackPanel Spacing="4">
-            <TextBlock Text="Password (optional)" Opacity="0.6" FontSize="12" />
+            <TextBlock Text="Senha (opcional)" Opacity="0.6" FontSize="12" />
             <PasswordBox x:Name="PasswordBox" />
         </StackPanel>
 
-        <CheckBox x:Name="ReconnectCheck" Content="Reconnect at sign-in" IsChecked="True" />
+        <CheckBox x:Name="ReconnectCheck" Content="Reconectar ao entrar" IsChecked="True" />
 
         <TextBlock x:Name="ErrorText" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                    TextWrapping="Wrap" Visibility="Collapsed" />

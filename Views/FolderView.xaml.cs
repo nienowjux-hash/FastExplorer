@@ -7,8 +7,11 @@ using FastExplorer.ViewModels;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -21,6 +24,43 @@ public sealed partial class FolderView : UserControl
     public FolderView()
     {
         InitializeComponent();
+
+        // FileListArea's context menu and file-drop handling are wired here with
+        // handledEventsToo:true, not as plain XAML attributes or a declarative
+        // Grid.ContextFlyout - ListView's own built-in gesture handling (tied to
+        // CanDragItems/item selection) can mark RightTapped/DragOver/Drop Handled
+        // before they'd otherwise bubble from FileList up to this wrapper Grid,
+        // especially over an empty or blank list area, which silently ate both the
+        // context menu and file drops there.
+        FileListArea.AddHandler(RightTappedEvent, new RightTappedEventHandler(FileListArea_RightTapped), true);
+        FileListArea.AddHandler(DragOverEvent, new DragEventHandler(FileList_DragOver), true);
+        FileListArea.AddHandler(DropEvent, new DragEventHandler(FileList_Drop), true);
+
+        // FileListArea.Background can't just be {ThemeResource ApplicationPageBackgroundThemeBrush}
+        // in XAML - confirmed empirically that brush isn't fully opaque (alpha < 255),
+        // and anything less than fully opaque silently fails to hit-test for pointer
+        // input here (Transparent, alpha=1/255, and alpha=16/255 were all tried and all
+        // failed; only a literal, guaranteed-alpha=255 brush - first proven with a
+        // throwaway solid Magenta - actually works). This forces alpha=255 on top of
+        // whatever color the current theme's page background resolves to, so it's
+        // reliably opaque while still matching the visible theme. WeakReferenceMessenger
+        // registration (no explicit unregister - FolderView has no Dispose, and the
+        // messenger holds this only weakly) keeps it in sync if the user switches theme.
+        ApplyOpaqueFileListAreaBackground();
+        WeakReferenceMessenger.Default.Register<FolderView, ThemeChangedMessage>(
+            this, (recipient, _) => recipient.ApplyOpaqueFileListAreaBackground());
+    }
+
+    private void ApplyOpaqueFileListAreaBackground()
+    {
+        var themeColor = (Application.Current.Resources["ApplicationPageBackgroundThemeBrush"] as SolidColorBrush)?.Color
+            ?? Microsoft.UI.Colors.Black;
+        FileListArea.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, themeColor.R, themeColor.G, themeColor.B));
+    }
+
+    private void FileListArea_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        FileContextMenu.ShowAt(FileListArea, new FlyoutShowOptions { Position = e.GetPosition(FileListArea) });
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e) => ViewModel?.GoBackCommand.Execute(null);
@@ -59,8 +99,63 @@ public sealed partial class FolderView : UserControl
         }
         else
         {
-            vm.StatusText = $"Path not found: {path}";
+            vm.StatusText = $"Caminho não encontrado: {path}";
         }
+    }
+
+    private const int MaxAddressSuggestions = 15;
+    private int _addressSuggestionVersion;
+
+    // Suggests sibling subfolders of whatever's already typed, e.g. "C:\Prog" ->
+    // every top-level folder under C:\ starting with "Prog". Enter still commits
+    // navigation via AddressBox_KeyDown above, unchanged - picking a suggestion
+    // here only fills the text box, it doesn't navigate by itself.
+    private async void AddressBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+
+        var text = AddressBox.Text;
+        var version = ++_addressSuggestionVersion;
+        var suggestions = await Task.Run(() => GetPathSuggestions(text));
+        if (version != _addressSuggestionVersion) return;
+
+        AddressBox.ItemsSource = suggestions;
+    }
+
+    private static List<string> GetPathSuggestions(string text)
+    {
+        try
+        {
+            string parent;
+            string partial;
+            if (text.EndsWith(Path.DirectorySeparatorChar) || text.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                parent = text;
+                partial = string.Empty;
+            }
+            else
+            {
+                parent = Path.GetDirectoryName(text) ?? string.Empty;
+                partial = Path.GetFileName(text);
+            }
+
+            if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent)) return new List<string>();
+
+            return Directory.EnumerateDirectories(parent)
+                .Where(d => Path.GetFileName(d).StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                .Take(MaxAddressSuggestions)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return new List<string>();
+        }
+    }
+
+    private void AddressBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is string path) AddressBox.Text = path;
     }
 
     private void SortHeader_Click(object sender, RoutedEventArgs e)
@@ -210,12 +305,51 @@ public sealed partial class FolderView : UserControl
     // it's loaded - a one-time, essentially free call, not something that runs per item.
     private void FileList_Loaded(object sender, RoutedEventArgs e) => FileList.Focus(FocusState.Programmatic);
 
+    // Lets a file be dragged out of this list - onto another pane's file list (to
+    // copy it there, via that pane's own FileList_Drop) or, in principle, onto any
+    // other app that accepts StorageItems. Resolving paths to real IStorageItems is
+    // inherently async, and DragItemsStartingEventArgs offers no way to await
+    // inline, so the actual work happens in a SetDataProvider callback (deferred
+    // until a drop target asks for it) rather than here.
+    private void FileList_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        var paths = e.Items.OfType<FileSystemItem>()
+            .Where(i => i.Kind != FileSystemItemKind.Drive)
+            .Select(i => i.FullPath)
+            .ToList();
+        if (paths.Count == 0)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        e.Data.RequestedOperation = DataPackageOperation.Copy;
+        e.Data.SetDataProvider(StandardDataFormats.StorageItems, async request =>
+        {
+            var deferral = request.GetDeferral();
+            try
+            {
+                var items = new List<IStorageItem>();
+                foreach (var path in paths)
+                {
+                    if (Directory.Exists(path)) items.Add(await StorageFolder.GetFolderFromPathAsync(path));
+                    else if (File.Exists(path)) items.Add(await StorageFile.GetFileFromPathAsync(path));
+                }
+                request.SetData(items);
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        });
+    }
+
     private void FileList_DragOver(object sender, DragEventArgs e)
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = "Copy here";
+            e.DragUIOverride.Caption = "Copiar aqui";
             e.DragUIOverride.IsCaptionVisible = true;
         }
     }
@@ -251,6 +385,25 @@ public sealed partial class FolderView : UserControl
         if (ViewModel?.SelectedItem is { } item) ViewModel.OpenItem(item);
     }
 
+    // The active pane (which this click already made active, via PaneGroupView's
+    // handledEventsToo pointer hook) is resolved on the receiving end - FolderView
+    // itself has no reference to its owning pane, only WeakReferenceMessenger does.
+    private void ContextOpenInNewTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedItem is { IsDirectory: true } item)
+        {
+            WeakReferenceMessenger.Default.Send(new OpenInNewTabRequestedMessage(item.FullPath));
+        }
+    }
+
+    private void ContextCopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedItem is not { } item) return;
+        var package = new DataPackage();
+        package.SetText(item.FullPath);
+        Clipboard.SetContent(package);
+    }
+
     private void ContextCut_Click(object sender, RoutedEventArgs e) => ViewModel?.CutSelectedCommand.Execute(null);
     private void ContextCopy_Click(object sender, RoutedEventArgs e) => ViewModel?.CopySelectedCommand.Execute(null);
     private async void ContextPaste_Click(object sender, RoutedEventArgs e) => await PasteFromClipboardAsync();
@@ -274,11 +427,11 @@ public sealed partial class FolderView : UserControl
     {
         var dialog = new ContentDialog
         {
-            Title = "Item already exists",
-            Content = $"{conflictingNames.Count} item(s) already exist in this folder:\n{string.Join(", ", conflictingNames)}",
-            PrimaryButtonText = "Replace",
-            SecondaryButtonText = "Keep both",
-            CloseButtonText = "Skip",
+            Title = "Item já existe",
+            Content = $"{conflictingNames.Count} item(ns) já existem nesta pasta:\n{string.Join(", ", conflictingNames)}",
+            PrimaryButtonText = "Substituir",
+            SecondaryButtonText = "Manter os dois",
+            CloseButtonText = "Ignorar",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot,
         };
@@ -300,10 +453,10 @@ public sealed partial class FolderView : UserControl
         var textBox = new TextBox { Text = item.Name, SelectionStart = 0 };
         var dialog = new ContentDialog
         {
-            Title = "Rename",
+            Title = "Renomear",
             Content = textBox,
-            PrimaryButtonText = "Rename",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = "Renomear",
+            CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot,
         };
@@ -329,6 +482,9 @@ public sealed partial class FolderView : UserControl
     private void ContextFlyout_Opening(object sender, object e)
     {
         DisconnectDriveItem.Visibility = ViewModel?.SelectedItem?.IsNetworkDrive == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        OpenInNewTabItem.Visibility = ViewModel?.SelectedItem?.IsDirectory == true
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -422,10 +578,10 @@ public sealed partial class FolderView : UserControl
         var propertiesView = new PropertiesView(item);
         var dialog = new ContentDialog
         {
-            Title = "Properties",
+            Title = "Propriedades",
             Content = propertiesView,
             PrimaryButtonText = "OK",
-            CloseButtonText = "Cancel",
+            CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot,
         };
@@ -440,7 +596,7 @@ public sealed partial class FolderView : UserControl
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                ViewModel.StatusText = $"Couldn't update attributes: {ex.Message}";
+                ViewModel.StatusText = $"Não foi possível atualizar os atributos: {ex.Message}";
             }
         }
     }

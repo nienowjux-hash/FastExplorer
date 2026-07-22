@@ -75,9 +75,9 @@ public static class FavoritesService
             }
         }
 
-        AddIfExists("Desktop", Environment.SpecialFolder.DesktopDirectory);
-        AddIfExists("Documents", Environment.SpecialFolder.MyDocuments);
-        AddIfExists("Pictures", Environment.SpecialFolder.MyPictures);
+        AddIfExists("Área de Trabalho", Environment.SpecialFolder.DesktopDirectory);
+        AddIfExists("Documentos", Environment.SpecialFolder.MyDocuments);
+        AddIfExists("Imagens", Environment.SpecialFolder.MyPictures);
 
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         if (Directory.Exists(downloads))

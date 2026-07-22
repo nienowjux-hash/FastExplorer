@@ -5,19 +5,28 @@ using CommunityToolkit.Mvvm.Messaging;
 using FastExplorer.Messaging;
 using FastExplorer.Models;
 using FastExplorer.Services;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
 namespace FastExplorer.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    public ObservableCollection<TabViewModel> Tabs { get; } = new();
     public ObservableCollection<FavoriteEntry> Favorites { get; } = new();
     public IReadOnlyList<AppTheme> AvailableThemes { get; } = Enum.GetValues<AppTheme>();
     public IReadOnlyList<AccentColor> AvailableAccentColors { get; } = Enum.GetValues<AccentColor>();
 
+    // The split-pane tree. Restart always starts from a single unsplit pane -
+    // splits are a live-session feature, not persisted (see SaveOpenTabs).
     [ObservableProperty]
-    private TabViewModel? selectedTab;
+    private PaneNode rootPane = null!;
+
+    // Which leaf pane global keyboard shortcuts (Ctrl+T, Ctrl+W, Ctrl+Tab) and the
+    // sidebar's "This PC"/favorites/network-drive actions apply to. Kept in sync by
+    // PaneGroupView's PointerPressed/GotFocus handlers via SetActivePane, mirroring
+    // the FileList focus-on-load pattern already used for per-tab keyboard shortcuts.
+    [ObservableProperty]
+    private PaneViewModel activePane = null!;
 
     [ObservableProperty]
     private AppTheme selectedTheme;
@@ -45,27 +54,55 @@ public partial class MainViewModel : ObservableObject
         selectedAccentColor = SettingsService.LoadAccentColor();
         AccentBrush = new SolidColorBrush(AccentColorPalette.GetBaseColor(selectedAccentColor));
 
+        var root = new PaneViewModel { Owner = this };
         var savedTabs = SettingsService.LoadOpenTabs();
         if (savedTabs.Count == 0)
         {
-            NewTab();
+            root.Tabs.Add(new TabViewModel());
         }
         else
         {
             foreach (var path in savedTabs)
             {
-                OpenTab(path);
+                root.Tabs.Add(new TabViewModel(path));
             }
-            SelectedTab = Tabs[0];
         }
+        root.SelectedTab = root.Tabs[0];
+
+        rootPane = root;
+        activePane = root;
     }
 
     // Called on shutdown (see MainWindow.Closed) so the next launch reopens the
-    // same folders - cheap since it's just the current path per tab, written once.
+    // same folders - cheap since it's just the current path per pane's tabs,
+    // flattened across every pane in the tree, written once.
     public void SaveOpenTabs()
     {
-        SettingsService.SaveOpenTabs(Tabs.Select(t => t.CurrentPath));
+        SettingsService.SaveOpenTabs(EnumerateLeaves(RootPane).SelectMany(p => p.Tabs).Select(t => t.CurrentPath));
     }
+
+    private static IEnumerable<PaneViewModel> EnumerateLeaves(PaneNode node)
+    {
+        switch (node)
+        {
+            case PaneViewModel leaf:
+                yield return leaf;
+                break;
+            case SplitPaneNode split:
+                foreach (var leaf in EnumerateLeaves(split.First)) yield return leaf;
+                foreach (var leaf in EnumerateLeaves(split.Second)) yield return leaf;
+                break;
+        }
+    }
+
+    private static PaneViewModel LeftmostLeaf(PaneNode node) => node switch
+    {
+        PaneViewModel leaf => leaf,
+        SplitPaneNode split => LeftmostLeaf(split.First),
+        _ => throw new InvalidOperationException("Unreachable pane node type."),
+    };
+
+    public void SetActivePane(PaneViewModel pane) => ActivePane = pane;
 
     partial void OnSelectedThemeChanged(AppTheme value)
     {
@@ -87,50 +124,130 @@ public partial class MainViewModel : ObservableObject
         WeakReferenceMessenger.Default.Send(new AccentColorChangedMessage(value));
     }
 
-    [RelayCommand]
-    private void NewTab()
+    public void NewTab(PaneViewModel pane, string? initialPath = null)
     {
-        var tab = new TabViewModel();
-        Tabs.Add(tab);
-        SelectedTab = tab;
+        var tab = initialPath is null ? new TabViewModel() : new TabViewModel(initialPath);
+        pane.Tabs.Add(tab);
+        pane.SelectedTab = tab;
     }
 
-    private void OpenTab(string path)
+    public void CloseTab(PaneViewModel pane, TabViewModel? tab)
     {
-        var tab = new TabViewModel(path);
-        Tabs.Add(tab);
-    }
-
-    [RelayCommand]
-    private void CloseTab(TabViewModel? tab)
-    {
-        tab ??= SelectedTab;
+        tab ??= pane.SelectedTab;
         if (tab is null) return;
-        var index = Tabs.IndexOf(tab);
-        Tabs.Remove(tab);
+        RemoveTabFromPane(pane, tab);
+    }
+
+    // Shared by ordinary tab-close and drag-a-tab-to-another-pane: removes `tab`
+    // from `pane`, then either reselects (tabs remain), refills with a fresh tab
+    // (pane is the sole pane left in the whole tree), or collapses `pane` out of
+    // the tree entirely by promoting its sibling into its old slot.
+    public void RemoveTabFromPane(PaneViewModel pane, TabViewModel tab)
+    {
+        var index = pane.Tabs.IndexOf(tab);
+        if (index < 0) return;
+
+        pane.Tabs.RemoveAt(index);
         tab.Dispose();
 
-        if (Tabs.Count == 0)
+        if (pane.Tabs.Count > 0)
         {
-            NewTab();
+            if (pane.SelectedTab == tab)
+            {
+                pane.SelectedTab = pane.Tabs[Math.Max(0, index - 1)];
+            }
             return;
         }
 
-        if (SelectedTab == tab)
+        CollapseEmptyPane(pane);
+    }
+
+    // Moves `tab` from `source` into `target` (drag-to-dock's Center zone, or a
+    // tab dragged directly onto another pane's tab strip) without disposing it -
+    // unlike RemoveTabFromPane/CloseTab, the tab keeps living, just in a new pane.
+    public void MoveTabToPane(TabViewModel tab, PaneViewModel source, PaneViewModel target)
+    {
+        var index = source.Tabs.IndexOf(tab);
+        if (index < 0) return;
+
+        source.Tabs.RemoveAt(index);
+        if (source.Tabs.Count > 0)
         {
-            SelectedTab = Tabs[Math.Max(0, index - 1)];
+            if (source.SelectedTab == tab)
+            {
+                source.SelectedTab = source.Tabs[Math.Max(0, index - 1)];
+            }
+        }
+        else
+        {
+            CollapseEmptyPane(source);
+        }
+
+        target.Tabs.Add(tab);
+        target.SelectedTab = tab;
+        ActivePane = target;
+    }
+
+    // `pane` has just lost its last tab: refill it if it's the sole pane left in
+    // the whole tree (never leave the window fully empty), otherwise splice it
+    // out of the tree entirely by promoting its sibling into its old slot.
+    private void CollapseEmptyPane(PaneViewModel pane)
+    {
+        if (pane.Parent is not SplitPaneNode parentSplit)
+        {
+            NewTab(pane);
+            return;
+        }
+
+        var sibling = parentSplit.SiblingOf(pane);
+        if (sibling is null) return;
+
+        if (parentSplit.Parent is SplitPaneNode grandparent)
+        {
+            grandparent.Replace(parentSplit, sibling);
+        }
+        else
+        {
+            sibling.Parent = null;
+            RootPane = sibling;
+        }
+
+        if (ActivePane == pane)
+        {
+            ActivePane = LeftmostLeaf(sibling);
         }
     }
 
     public void NavigateActiveTab(string path)
     {
-        SelectedTab?.NavigateTo(path);
+        ActivePane.SelectedTab?.NavigateTo(path);
+    }
+
+    // Splices `newPane` in next to `target`, replacing target's old slot in the
+    // tree with a fresh SplitPaneNode containing both. Used by drag-to-dock (see
+    // PaneGroupView.DragOverlay_Drop) - the dragged tab lands in `newPane`.
+    public void SplitPane(PaneViewModel target, Orientation orientation, PaneViewModel newPane, bool newPaneIsSecond)
+    {
+        var oldParent = target.Parent;
+        var split = newPaneIsSecond
+            ? new SplitPaneNode(orientation, target, newPane)
+            : new SplitPaneNode(orientation, newPane, target);
+
+        if (oldParent is SplitPaneNode parentSplit)
+        {
+            parentSplit.Replace(target, split);
+        }
+        else
+        {
+            split.Parent = null;
+            RootPane = split;
+        }
     }
 
     [RelayCommand]
     private void AddFavorite(FileSystemItem? item)
     {
-        var path = item?.FullPath ?? SelectedTab?.CurrentPath;
+        var path = item?.FullPath ?? ActivePane.SelectedTab?.CurrentPath;
         if (string.IsNullOrEmpty(path)) return;
         if (Favorites.Any(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase))) return;
 

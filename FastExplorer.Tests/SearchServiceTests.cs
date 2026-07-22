@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Xunit;
@@ -30,7 +31,7 @@ public class SearchServiceTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "nested", "report-final.txt"), "x");
         File.WriteAllText(Path.Combine(_root, "unrelated.txt"), "x");
 
-        var matches = new List<FileSystemItem>();
+        var matches = new ConcurrentBag<FileSystemItem>();
         await SearchService.SearchByNameAsync(_root, "report", matches.Add, CancellationToken.None);
 
         Assert.Equal(2, matches.Count);
@@ -44,7 +45,7 @@ public class SearchServiceTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "a.txt"), "the quick brown fox");
         File.WriteAllText(Path.Combine(_root, "b.txt"), "nothing relevant here");
 
-        var matches = new List<FileSystemItem>();
+        var matches = new ConcurrentBag<FileSystemItem>();
         await SearchService.SearchByContentAsync(_root, "quick brown", matches.Add, CancellationToken.None);
 
         var match = Assert.Single(matches);
