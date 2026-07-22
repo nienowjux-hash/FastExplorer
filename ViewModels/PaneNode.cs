@@ -27,27 +27,25 @@ public partial class SplitPaneNode : PaneNode
     [ObservableProperty]
     private GridLength secondLength = new(1, GridUnitType.Star);
 
+    // [ObservableProperty], not a plain property with a hand-written setter: the
+    // recursive tree is rendered by SplitContainerView binding a ContentControl's
+    // Content to First/Second via a live property-changed subscription (not a
+    // one-shot imperative read), specifically so that splitting an *already
+    // nested* pane - Replace() below, mutating an existing SplitPaneNode's child
+    // in place rather than reassigning MainViewModel.RootPane itself - actually
+    // repaints. Before this was observable, that mutation was silent: nothing
+    // was listening, so a second-level split only ever appeared to work when
+    // some unrelated side effect (e.g. the source pane's own collapse) happened
+    // to also reassign RootPane and force a full rebuild as a side effect.
+    [ObservableProperty]
     private PaneNode first = null!;
-    public PaneNode First
-    {
-        get => first;
-        set
-        {
-            first = value;
-            value.Parent = this;
-        }
-    }
 
+    [ObservableProperty]
     private PaneNode second = null!;
-    public PaneNode Second
-    {
-        get => second;
-        set
-        {
-            second = value;
-            value.Parent = this;
-        }
-    }
+
+    partial void OnFirstChanged(PaneNode value) => value.Parent = this;
+
+    partial void OnSecondChanged(PaneNode value) => value.Parent = this;
 
     public SplitPaneNode(Orientation orientation, PaneNode first, PaneNode second)
     {

@@ -54,10 +54,20 @@
              active cross-pane tab drag (toggled via TabDragState), so it never
              interferes with ordinary clicks/scrolling into the file list below.
              Covers the whole pane (not just the tab strip) so dropping on an
-             edge here is what triggers a split. -->
+             edge here is what triggers a split. Two layers: a faint tint across
+             the whole pane whenever ANY drag is active (so it's obvious every
+             pane is a valid target, not just wherever the cursor happens to be),
+             and a stronger bordered ZoneHighlight for the specific edge/center
+             zone currently being hovered. -->
         <Grid x:Name="DragOverlay" Background="Transparent" Visibility="Collapsed"
               AllowDrop="True" DragOver="DragOverlay_DragOver" DragLeave="DragOverlay_DragLeave" Drop="DragOverlay_Drop">
-            <Border x:Name="ZoneHighlight" Visibility="Collapsed" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.35" />
+            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.06" />
+            <Border x:Name="ZoneHighlight" Visibility="Collapsed"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.45"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2">
+                <TextBlock x:Name="ZoneHighlightLabel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontWeight="SemiBold" FontSize="14" Foreground="White" TextAlignment="Center" />
+            </Border>
         </Grid>
     </Grid>
 </UserControl>

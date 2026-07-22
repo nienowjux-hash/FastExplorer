@@ -224,8 +224,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     // Splices `newPane` in next to `target`, replacing target's old slot in the
-    // tree with a fresh SplitPaneNode containing both. Used by drag-to-dock (see
-    // PaneGroupView.DragOverlay_Drop) - the dragged tab lands in `newPane`.
+    // tree with a fresh SplitPaneNode containing both.
     public void SplitPane(PaneViewModel target, Orientation orientation, PaneViewModel newPane, bool newPaneIsSecond)
     {
         var oldParent = target.Parent;
@@ -242,6 +241,55 @@ public partial class MainViewModel : ObservableObject
             split.Parent = null;
             RootPane = split;
         }
+    }
+
+    // Drag-to-dock's edge-zone entry point (see PaneGroupView.DragOverlay_Drop):
+    // moves `tab` out of `sourcePane` into a brand-new sibling pane docked next to
+    // `targetPane`. Order matters here - the split MUST happen before any
+    // collapse-eligible removal runs, not after: dragging a pane's own single tab
+    // to split itself (sourcePane == targetPane) used to call RemoveTabFromPane
+    // first, which - if that was the pane's last tab - collapsed it out of the
+    // tree (splicing its sibling into its old slot) *before* SplitPane ran, so
+    // SplitPane then reparented the split under a Parent reference that no longer
+    // led anywhere reachable from RootPane. The pane would simply vanish. Removing
+    // the tab from the plain list first (not through the collapse-checking
+    // RemoveTabFromPane), splitting while targetPane's tree position is still
+    // valid, and only then checking whether the source needs to collapse (using
+    // its now-correct, possibly brand-new parent) avoids that entirely - for both
+    // the self-split and cross-pane-drag cases.
+    public void SplitPaneWithTab(PaneViewModel targetPane, Orientation orientation, bool newPaneIsSecond, TabViewModel tab, PaneViewModel sourcePane)
+    {
+        if (ReferenceEquals(sourcePane, targetPane) && sourcePane.Tabs.Count <= 1)
+        {
+            // Nothing would be left on one side of the split - a single-tab pane
+            // can't meaningfully split against itself.
+            return;
+        }
+
+        var index = sourcePane.Tabs.IndexOf(tab);
+        if (index < 0) return;
+
+        sourcePane.Tabs.RemoveAt(index);
+
+        var newPane = new PaneViewModel { Owner = this };
+        newPane.Tabs.Add(tab);
+        newPane.SelectedTab = tab;
+
+        SplitPane(targetPane, orientation, newPane, newPaneIsSecond);
+
+        if (sourcePane.Tabs.Count > 0)
+        {
+            if (sourcePane.SelectedTab == tab)
+            {
+                sourcePane.SelectedTab = sourcePane.Tabs[Math.Max(0, index - 1)];
+            }
+        }
+        else
+        {
+            CollapseEmptyPane(sourcePane);
+        }
+
+        ActivePane = newPane;
     }
 
     [RelayCommand]

@@ -148,20 +148,12 @@ public sealed partial class PaneGroupView : UserControl
         }
         else
         {
-            var owner = targetPane.Owner;
-            owner.RemoveTabFromPane(sourcePane, tab);
-
-            var newPane = new PaneViewModel { Owner = owner };
-            newPane.Tabs.Add(tab);
-            newPane.SelectedTab = tab;
-
             var orientation = zone is DockZone.Left or DockZone.Right
                 ? Microsoft.UI.Xaml.Controls.Orientation.Horizontal
                 : Microsoft.UI.Xaml.Controls.Orientation.Vertical;
             var newPaneIsSecond = zone is DockZone.Right or DockZone.Bottom;
 
-            owner.SplitPane(targetPane, orientation, newPane, newPaneIsSecond);
-            owner.SetActivePane(newPane);
+            targetPane.Owner.SplitPaneWithTab(targetPane, orientation, newPaneIsSecond, tab, sourcePane);
         }
 
         TabDragState.End();
@@ -186,6 +178,13 @@ public sealed partial class PaneGroupView : UserControl
         return closest.Distance < EdgeZoneFraction ? closest.Zone : DockZone.Center;
     }
 
+    // The trigger band (EdgeZoneFraction, 25%) is deliberately smaller than what
+    // gets previewed here: showing only that thin 25% strip made it unclear the
+    // drop would actually produce an even 50/50 split (matching SplitPaneNode's
+    // default equal FirstLength/SecondLength) - previewing the real resulting
+    // half, with a label naming the action, is what actually communicates it.
+    private const double PreviewSizeFraction = 0.5;
+
     private void ShowZoneHighlight(DockZone zone)
     {
         ZoneHighlight.Visibility = Visibility.Visible;
@@ -198,22 +197,27 @@ public sealed partial class PaneGroupView : UserControl
         {
             case DockZone.Left:
                 ZoneHighlight.HorizontalAlignment = HorizontalAlignment.Left;
-                ZoneHighlight.Width = DragOverlay.ActualWidth * EdgeZoneFraction;
+                ZoneHighlight.Width = DragOverlay.ActualWidth * PreviewSizeFraction;
+                ZoneHighlightLabel.Text = "Dividir à esquerda";
                 break;
             case DockZone.Right:
                 ZoneHighlight.HorizontalAlignment = HorizontalAlignment.Right;
-                ZoneHighlight.Width = DragOverlay.ActualWidth * EdgeZoneFraction;
+                ZoneHighlight.Width = DragOverlay.ActualWidth * PreviewSizeFraction;
+                ZoneHighlightLabel.Text = "Dividir à direita";
                 break;
             case DockZone.Top:
                 ZoneHighlight.VerticalAlignment = VerticalAlignment.Top;
-                ZoneHighlight.Height = DragOverlay.ActualHeight * EdgeZoneFraction;
+                ZoneHighlight.Height = DragOverlay.ActualHeight * PreviewSizeFraction;
+                ZoneHighlightLabel.Text = "Dividir acima";
                 break;
             case DockZone.Bottom:
                 ZoneHighlight.VerticalAlignment = VerticalAlignment.Bottom;
-                ZoneHighlight.Height = DragOverlay.ActualHeight * EdgeZoneFraction;
+                ZoneHighlight.Height = DragOverlay.ActualHeight * PreviewSizeFraction;
+                ZoneHighlightLabel.Text = "Dividir abaixo";
                 break;
             case DockZone.Center:
             default:
+                ZoneHighlightLabel.Text = "Mover para esta aba";
                 break;
         }
     }
