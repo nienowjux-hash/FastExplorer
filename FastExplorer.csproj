@@ -16,7 +16,7 @@
     <SelfContained>false</SelfContained>
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <LangVersion>latest</LangVersion>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>FastExplorer</Product>
     <Description>A fast, tabbed file explorer for Windows.</Description>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
