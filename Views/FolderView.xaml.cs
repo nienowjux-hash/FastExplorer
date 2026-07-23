@@ -605,6 +605,29 @@ public sealed partial class FolderView : UserControl
         await dialog.ShowAsync();
     }
 
+    private async void ContextFindDuplicates_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedItem is { IsDirectory: true } item) await ShowDuplicatesAsync(item.FullPath);
+    }
+
+    private async void DuplicatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is { } vm && !string.IsNullOrEmpty(vm.CurrentPath)) await ShowDuplicatesAsync(vm.CurrentPath);
+    }
+
+    private async Task ShowDuplicatesAsync(string path)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Buscar arquivos duplicados",
+            Content = new DuplicatesView(path),
+            CloseButtonText = "Fechar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+        await dialog.ShowAsync();
+    }
+
     private void ContextCopyPath_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel?.SelectedItem is not { } item) return;
@@ -686,6 +709,85 @@ public sealed partial class FolderView : UserControl
         }
     }
 
+    // Mirrors TabViewModel.GetOperationTargets' single-vs-multi fallback (that one's
+    // private to the ViewModel) for the context-menu actions that live here in
+    // code-behind instead: tags and the image batch dialog both need "the selection, or
+    // the single right-clicked item if nothing's multi-selected."
+    private List<FileSystemItem> GetContextTargets()
+    {
+        if (ViewModel is not { } vm) return new List<FileSystemItem>();
+        if (vm.SelectedItems.Count > 0) return vm.SelectedItems.ToList();
+        return vm.SelectedItem is { } item ? new List<FileSystemItem> { item } : new List<FileSystemItem>();
+    }
+
+    // Preset Tag is "colorHex;label" - both applied together.
+    private void TagPresetItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem { Tag: string tag }) return;
+        var parts = tag.Split(';', 2);
+        if (parts.Length != 2) return;
+        ApplyTag(parts[0], parts[1]);
+    }
+
+    private async void TagCustomItem_Click(object sender, RoutedEventArgs e)
+    {
+        var targets = GetContextTargets();
+        if (targets.Count == 0) return;
+
+        // Prefill from the first selected item's current tag, if any, so editing an
+        // already-tagged item starts from what it already has instead of a blank form.
+        var first = targets[0];
+        var editView = new TagEditView(first.TagLabel, first.TagColorHex);
+        var dialog = new ContentDialog
+        {
+            Title = "Personalizar etiqueta",
+            Content = editView,
+            PrimaryButtonText = "Salvar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        ApplyTag(editView.ColorHex, editView.Label);
+    }
+
+    private void RemoveTagItem_Click(object sender, RoutedEventArgs e) => ApplyTag(null, null);
+
+    // Writes through FileTagService and updates each already-loaded FileSystemItem in
+    // place so the colored dot (and its tooltip) in the list update immediately - no
+    // need to reload the folder just to pick up a tag change.
+    private void ApplyTag(string? colorHex, string? label)
+    {
+        foreach (var target in GetContextTargets())
+        {
+            FileTagService.SetTag(target.FullPath, colorHex, label);
+            target.TagColorHex = colorHex;
+            target.TagLabel = colorHex is null ? null : label;
+        }
+    }
+
+    private async void ContextResizeImages_Click(object sender, RoutedEventArgs e)
+    {
+        var targets = GetContextTargets();
+        if (targets.Count == 0) return;
+
+        var parentFolder = Path.GetDirectoryName(targets[0].FullPath);
+        if (string.IsNullOrEmpty(parentFolder)) return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Redimensionar/converter imagens",
+            Content = new ImageBatchView(targets.Select(t => t.FullPath).ToList(), parentFolder),
+            CloseButtonText = "Fechar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+        await dialog.ShowAsync();
+    }
+
     private ShellContextMenu? _shellContextMenu;
     private readonly List<MenuFlyoutItemBase> _dynamicShellItems = new();
 
@@ -698,6 +800,14 @@ public sealed partial class FolderView : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
         AnalyzeDiskUsageItem.Visibility = ViewModel?.SelectedItem?.IsDirectory == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        FindDuplicatesItem.Visibility = ViewModel?.SelectedItem?.IsDirectory == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        var contextTargets = GetContextTargets();
+        ResizeImagesItem.Visibility = contextTargets.Count > 0 && contextTargets.All(t => !t.IsDirectory && t.Category == FileTypeCategory.Image)
             ? Visibility.Visible
             : Visibility.Collapsed;
 

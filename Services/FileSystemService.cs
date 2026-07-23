@@ -120,6 +120,7 @@ public static class FileSystemService
         }
 
         var rawAttributes = (int)entry.Attributes;
+        var tag = FileTagService.GetTag(entry.FullName);
 
         return new FileSystemItem
         {
@@ -132,6 +133,8 @@ public static class FileSystemService
             Extension = isDirectory ? string.Empty : entry.Extension,
             IsCloudPlaceholder = (rawAttributes & FileAttributeRecallOnDataAccess) != 0,
             IsCloudPinned = (rawAttributes & FileAttributePinned) != 0,
+            TagColorHex = tag?.ColorHex,
+            TagLabel = tag?.Label,
         };
     }
 

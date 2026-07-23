@@ -11,11 +11,17 @@
          ContentDialogMaxWidth theme resource) regardless of what this UserControl asks
          for, and the four toolbar buttons don't fit in one row within that budget -
          wrapping them into two rows (rather than widening the dialog, which would fight
-         that cap) is what keeps everything on-screen at any window size. -->
-    <Grid Width="500" Height="420" RowSpacing="8">
+         that cap) is what keeps everything on-screen at any window size. The list row is
+         a *fixed* pixel height, not "*" - a Star row only gets real space once the outer
+         Grid actually receives that much height from its parent, and on a short
+         FastExplorer window it doesn't, silently clipping StatusText/ConfirmPanel below
+         the list with no scrollbar to reveal them (found while fixing the identical bug
+         in DuplicatesView - see its comment for the full explanation). A fixed height
+         makes the whole Grid autosize to its own content instead. -->
+    <Grid Width="500" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="260" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>

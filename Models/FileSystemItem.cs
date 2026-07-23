@@ -28,6 +28,23 @@ public partial class FileSystemItem : ObservableObject
     [ObservableProperty]
     private bool isCut;
 
+    // User-assigned color tag (FileTagService), loaded per item in FileSystemService.ToItem
+    // and updated live from FolderView's "Etiqueta" submenu - mutable/notifying like
+    // Thumbnail/IsCut above, unlike the fixed-at-creation properties below.
+    [ObservableProperty]
+    private string? tagColorHex;
+
+    // The tag's description (e.g. "Urgente") - shown as a tooltip over the item so the
+    // colored dot alone isn't the only way to tell what a tag means. Bound directly to
+    // ToolTipService.ToolTip in FolderView.xaml; null/empty means WinUI just shows no
+    // tooltip, so an untagged or label-less-tagged item needs no special-casing here.
+    [ObservableProperty]
+    private string? tagLabel;
+
+    public bool HasTag => TagColorHex is not null;
+
+    partial void OnTagColorHexChanged(string? value) => OnPropertyChanged(nameof(HasTag));
+
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public FileSystemItemKind Kind { get; init; }

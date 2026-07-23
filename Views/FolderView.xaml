@@ -22,7 +22,8 @@
 
         <DataTemplate x:Key="ListItemTemplate" x:DataType="models:FileSystemItem">
             <Grid Padding="12,6" ColumnSpacing="8"
-                  Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}">
+                  Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}"
+                  ToolTipService.ToolTip="{x:Bind TagLabel, Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="28" />
                     <ColumnDefinition Width="*" />
@@ -38,6 +39,9 @@
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="{x:Bind CloudGlyph}" FontSize="9"
                               HorizontalAlignment="Right" VerticalAlignment="Bottom"
                               Visibility="{x:Bind HasCloudStatus}" />
+                    <Border Width="6" Height="6" CornerRadius="3" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Background="{x:Bind TagColorHex, Converter={StaticResource HexColorToBrushConverter}, Mode=OneWay}"
+                            Visibility="{x:Bind HasTag, Mode=OneWay}" />
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay}" Opacity="0.7" FontSize="12" VerticalAlignment="Center" />
@@ -47,7 +51,8 @@
 
         <DataTemplate x:Key="LargeIconItemTemplate" x:DataType="models:FileSystemItem">
             <StackPanel Width="96" Margin="4" Padding="4" HorizontalAlignment="Center" Spacing="4"
-                        Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}">
+                        Opacity="{x:Bind IsCut, Converter={StaticResource BoolToOpacityConverter}, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind TagLabel, Mode=OneWay}">
                 <Grid Width="48" Height="48" HorizontalAlignment="Center">
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="{x:Bind IconGlyph}" FontSize="40"
                               Foreground="{x:Bind IconColorHex, Converter={StaticResource HexColorToBrushConverter}}"
@@ -57,6 +62,9 @@
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="{x:Bind CloudGlyph}" FontSize="12"
                               HorizontalAlignment="Right" VerticalAlignment="Bottom"
                               Visibility="{x:Bind HasCloudStatus}" />
+                    <Border Width="8" Height="8" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Background="{x:Bind TagColorHex, Converter={StaticResource HexColorToBrushConverter}, Mode=OneWay}"
+                            Visibility="{x:Bind HasTag, Mode=OneWay}" />
                 </Grid>
                 <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                            MaxLines="2" TextAlignment="Center" FontSize="12" HorizontalAlignment="Center" />
@@ -127,6 +135,10 @@
             <Button x:Name="DiskUsageButton" Click="DiskUsageButton_Click" ToolTipService.ToolTip="Analisar espaço em disco"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE9D2;" FontSize="14" Foreground="{Binding AccentBrush}" />
+            </Button>
+            <Button x:Name="DuplicatesButton" Click="DuplicatesButton_Click" ToolTipService.ToolTip="Buscar arquivos duplicados"
+                    Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8C8;" FontSize="14" Foreground="{Binding AccentBrush}" />
             </Button>
             <Button x:Name="NewButton" ToolTipService.ToolTip="Novo"
                     Visibility="{Binding IsAtDrivesRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
@@ -201,10 +213,12 @@
                     <MenuFlyoutItem Text="Abrir" Click="ContextOpen_Click" />
                     <MenuFlyoutItem x:Name="OpenInNewTabItem" Text="Abrir em nova aba" Click="ContextOpenInNewTab_Click" />
                     <MenuFlyoutItem x:Name="AnalyzeDiskUsageItem" Text="Analisar espaço em disco" Click="ContextAnalyzeDiskUsage_Click" />
+                    <MenuFlyoutItem x:Name="FindDuplicatesItem" Text="Buscar arquivos duplicados" Click="ContextFindDuplicates_Click" />
                     <MenuFlyoutItem Text="Recortar" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
                     <MenuFlyoutItem Text="Copiar" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
                     <MenuFlyoutItem Text="Colar" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />
                     <MenuFlyoutItem Text="Organizar arquivos" Click="ContextOrganize_Click" />
+                    <MenuFlyoutItem x:Name="ResizeImagesItem" Text="Redimensionar/converter imagens" Click="ContextResizeImages_Click" />
                     <MenuFlyoutSubItem Text="Novo">
                         <MenuFlyoutItem Text="Pasta" Click="NewFolderMenuItem_Click" />
                         <MenuFlyoutItem Text="Documento de Texto" Click="NewTextFileMenuItem_Click" />
@@ -215,6 +229,44 @@
                     <MenuFlyoutItem x:Name="DisconnectDriveItem" Text="Desconectar unidade de rede" Click="ContextDisconnectDrive_Click" />
                     <MenuFlyoutSeparator />
                     <MenuFlyoutItem Text="Adicionar aos favoritos" Click="ContextAddFavorite_Click" />
+                    <MenuFlyoutSubItem Text="Etiqueta">
+                        <!-- Tag encodes "colorHex;label" - parsed together in
+                             TagPresetItem_Click so each preset carries both at once. -->
+                        <MenuFlyoutItem Text="Urgente" Tag="#E81123;Urgente" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#E81123" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Importante" Tag="#F7630C;Importante" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#F7630C" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Em andamento" Tag="#FFB900;Em andamento" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#FFB900" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Concluído" Tag="#107C10;Concluído" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#107C10" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Revisar" Tag="#0078D4;Revisar" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#0078D4" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Arquivo" Tag="#881798;Arquivo" Click="TagPresetItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#x25CF;" Foreground="#881798" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Personalizar..." Click="TagCustomItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Remover etiqueta" Click="RemoveTagItem_Click" />
+                    </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator x:Name="ShellExtensionsAnchor" />
                     <MenuFlyoutItem Text="Propriedades" Click="ContextProperties_Click" KeyboardAcceleratorTextOverride="Alt+Enter" />
                 </MenuFlyout>
