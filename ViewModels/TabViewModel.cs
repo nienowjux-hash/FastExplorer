@@ -784,8 +784,14 @@ public partial class TabViewModel : ObservableObject, IDisposable
     public IReadOnlyList<string> PeekPasteConflicts() =>
         string.IsNullOrEmpty(CurrentPath) ? Array.Empty<string>() : PeekConflicts(s_clipboard, CurrentPath);
 
-    public IReadOnlyList<string> PeekDropConflicts(IReadOnlyList<string> sourcePaths) =>
-        string.IsNullOrEmpty(CurrentPath) ? Array.Empty<string>() : PeekConflicts(sourcePaths, CurrentPath);
+    // destinationFolder is the specific subfolder a file was dropped directly onto
+    // (FolderView.GetDropTargetFolder), when there was one - otherwise CurrentPath,
+    // matching a drop anywhere else in the list.
+    public IReadOnlyList<string> PeekDropConflicts(IReadOnlyList<string> sourcePaths, string? destinationFolder = null)
+    {
+        var destination = destinationFolder ?? CurrentPath;
+        return string.IsNullOrEmpty(destination) ? Array.Empty<string>() : PeekConflicts(sourcePaths, destination);
+    }
 
     private static List<string> PeekConflicts(IReadOnlyList<string> sourcePaths, string destination)
     {
@@ -837,11 +843,12 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task CopyIntoAsync(IReadOnlyList<string> sourcePaths, ConflictResolution resolution)
+    public async Task CopyIntoAsync(IReadOnlyList<string> sourcePaths, ConflictResolution resolution, string? destinationFolder = null)
     {
-        if (string.IsNullOrEmpty(CurrentPath) || sourcePaths.Count == 0) return;
+        var destination = destinationFolder ?? CurrentPath;
+        if (string.IsNullOrEmpty(destination) || sourcePaths.Count == 0) return;
 
-        var outcome = await TransferAsync(sourcePaths, CurrentPath, isCut: false, resolution);
+        var outcome = await TransferAsync(sourcePaths, destination, isCut: false, resolution);
         if (outcome is null) return; // cancelled
 
         Refresh();

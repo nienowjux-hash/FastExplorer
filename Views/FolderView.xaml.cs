@@ -530,20 +530,48 @@ public sealed partial class FolderView : UserControl
         });
     }
 
+    // AllowDrop is only set on FileListArea (the whole list's wrapping container, not
+    // each row - see CLAUDE.md), so e.OriginalSource on a drag/drop event is always
+    // FileListArea itself, never the specific row under the pointer; a DataContext
+    // check on it can't find a target folder (this is why the first version of this
+    // silently never worked). Position-based hit-testing against FileList's own visual
+    // tree is what actually finds the row: walk every element at the drop point,
+    // outermost-first, until one whose DataContext is a directory item turns up.
+    private FileSystemItem? GetDropTargetFolder(DragEventArgs e)
+    {
+        // FindElementsInHostCoordinates wants the point in the app's host/window
+        // coordinate space, not relative to FileList - GetPosition(null) is what
+        // returns that (same convention as PointerRoutedEventArgs.GetCurrentPoint(null)).
+        // Passing GetPosition(FileList) here (element-relative) was the actual reason
+        // this still didn't work after the OriginalSource fix: the point was in the
+        // wrong coordinate space entirely, so hit-testing never landed on anything real.
+        var point = e.GetPosition(null);
+        var elements = VisualTreeHelper.FindElementsInHostCoordinates(point, FileList, includeAllElements: true);
+        foreach (var element in elements)
+        {
+            if (element is FrameworkElement { DataContext: FileSystemItem { IsDirectory: true } item }) return item;
+        }
+        return null;
+    }
+
     private void FileList_DragOver(object sender, DragEventArgs e)
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
-        {
-            e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = "Copiar aqui";
-            e.DragUIOverride.IsCaptionVisible = true;
-        }
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+
+        e.AcceptedOperation = DataPackageOperation.Copy;
+        var targetFolder = GetDropTargetFolder(e);
+        e.DragUIOverride.Caption = targetFolder is { } folder ? $"Copiar para \"{folder.Name}\"" : "Copiar aqui";
+        e.DragUIOverride.IsCaptionVisible = true;
     }
 
     private async void FileList_Drop(object sender, DragEventArgs e)
     {
         if (ViewModel is not { } vm || string.IsNullOrEmpty(vm.CurrentPath)) return;
         if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+
+        // Captured now, before the first await - the pointer position this reads is
+        // only meaningful synchronously during the event, not after awaiting.
+        var targetFolder = GetDropTargetFolder(e);
 
         var deferral = e.GetDeferral();
         try
@@ -552,13 +580,21 @@ public sealed partial class FolderView : UserControl
             var paths = storageItems.Select(i => i.Path).ToList();
             if (paths.Count == 0) return;
 
-            var conflicts = vm.PeekDropConflicts(paths);
+            // Dropping a file back onto the folder it's already directly in isn't a
+            // real conflict to prompt about - just a no-op, same as dropping it on
+            // empty space in that same folder would already have been treated (this
+            // wasn't reachable before drops could target a specific row).
+            var destination = targetFolder?.FullPath ?? vm.CurrentPath;
+            paths = paths.Where(p => !string.Equals(Path.GetDirectoryName(p), destination, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (paths.Count == 0) return;
+
+            var conflicts = vm.PeekDropConflicts(paths, targetFolder?.FullPath);
             var resolution = conflicts.Count == 0
                 ? ConflictResolution.FailOnConflict
                 : await ResolveConflictsAsync(conflicts);
             if (resolution is null) return;
 
-            await vm.CopyIntoAsync(paths, resolution.Value);
+            await vm.CopyIntoAsync(paths, resolution.Value, targetFolder?.FullPath);
         }
         finally
         {
