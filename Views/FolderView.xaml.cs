@@ -618,6 +618,7 @@ public sealed partial class FolderView : UserControl
     private async void ContextPaste_Click(object sender, RoutedEventArgs e) => await PasteFromClipboardAsync();
     private void ContextDelete_Click(object sender, RoutedEventArgs e) => ViewModel?.DeleteSelectedCommand.Execute(null);
     private async void ContextRename_Click(object sender, RoutedEventArgs e) => await BeginRenameAsync();
+    private void ContextOrganize_Click(object sender, RoutedEventArgs e) => ViewModel?.OrganizeSelectedCommand.Execute(null);
 
     private async Task PasteFromClipboardAsync()
     {

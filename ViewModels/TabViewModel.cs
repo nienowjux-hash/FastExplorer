@@ -695,6 +695,51 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    private async Task OrganizeSelectedAsync()
+    {
+        var targets = GetOperationTargets();
+        if (targets.Count == 0) return;
+
+        IsBusy = true;
+        try
+        {
+            // A single selected folder organizes its own (direct) contents; anything else -
+            // loose files, or a multi-selection - organizes those specific files into
+            // subfolders of the current folder instead.
+            var moves = await Task.Run(() =>
+            {
+                if (targets.Count == 1 && targets[0].IsDirectory)
+                {
+                    var folder = targets[0].FullPath;
+                    return OrganizeService.OrganizeByType(Directory.EnumerateFiles(folder), folder);
+                }
+
+                var files = targets.Where(t => !t.IsDirectory).Select(t => t.FullPath);
+                return OrganizeService.OrganizeByType(files, CurrentPath);
+            });
+
+            Refresh();
+            if (moves.Count > 0)
+            {
+                UndoService.Push(new MoveUndoAction(moves));
+                StatusText = moves.Count == 1 ? "1 arquivo organizado" : $"{moves.Count} arquivos organizados";
+            }
+            else
+            {
+                StatusText = "Nada para organizar";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText = $"Não foi possível organizar: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     public async Task RenameAsync(FileSystemItem item, string newName)
     {
         var oldName = item.Name;

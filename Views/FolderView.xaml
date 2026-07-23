@@ -204,6 +204,7 @@
                     <MenuFlyoutItem Text="Recortar" Click="ContextCut_Click" KeyboardAcceleratorTextOverride="Ctrl+X" />
                     <MenuFlyoutItem Text="Copiar" Click="ContextCopy_Click" KeyboardAcceleratorTextOverride="Ctrl+C" />
                     <MenuFlyoutItem Text="Colar" Click="ContextPaste_Click" KeyboardAcceleratorTextOverride="Ctrl+V" />
+                    <MenuFlyoutItem Text="Organizar arquivos" Click="ContextOrganize_Click" />
                     <MenuFlyoutSubItem Text="Novo">
                         <MenuFlyoutItem Text="Pasta" Click="NewFolderMenuItem_Click" />
                         <MenuFlyoutItem Text="Documento de Texto" Click="NewTextFileMenuItem_Click" />
