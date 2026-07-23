@@ -37,6 +37,16 @@ jobs:
           --filter "Category!=RequiresDesktop"
           --blame-hang-timeout 120s --blame-hang-dump-type mini
 
+      # See ci.yml - grabs the blame hang-dump for analysis if the Test step above
+      # still crashes/hangs. No-ops on a normal green run.
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: FastExplorer.Tests/TestResults/**
+          if-no-files-found: ignore
+
       - name: Publish self-contained win-x64
         run: >
           dotnet publish FastExplorer.csproj -c Release -p:Platform=x64 -r win-x64

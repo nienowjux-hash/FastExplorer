@@ -42,3 +42,14 @@ jobs:
           dotnet test FastExplorer.Tests/FastExplorer.Tests.csproj -c Release -p:Platform=x64
           --filter "Category!=RequiresDesktop"
           --blame-hang-timeout 120s --blame-hang-dump-type mini
+
+      # Only relevant if the Test step above still crashes/hangs - grabs the blame
+      # hang-dump (and sequence log) so it can actually be analyzed instead of guessed
+      # about again. No-ops (and uploads nothing) on a normal green run.
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: FastExplorer.Tests/TestResults/**
+          if-no-files-found: ignore
